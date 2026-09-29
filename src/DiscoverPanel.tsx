@@ -636,6 +636,7 @@ export function DiscoverPanel({
                 <button
                   className="button secondary"
                   onClick={() => {
+                    setError("");
                     setConfirm(job);
                     setDate(localDate());
                   }}
@@ -725,6 +726,7 @@ export function DiscoverPanel({
               });
             }}
           >
+            {error && <Notice error>{error}</Notice>}
             <p>
               Confirm that you submitted an application for {confirm.title} at{" "}
               {confirm.company}. Opening the listing does not submit anything.

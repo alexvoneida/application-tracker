@@ -740,3 +740,52 @@ test("deleting the only application on the last page shows the previous page", a
   // Wait for the app's 5-second state poll to drop the deleted application.
   await expect(rows).toHaveCount(30, { timeout: 10000 });
 });
+
+test("a failed application confirmation shows its error inside the dialog", async ({
+  page,
+}) => {
+  const store = new Store(process.env.TRACKER_E2E_DIR!);
+  const url = "https://jobs.ashbyhq.com/fixture/record-error";
+  const now = new Date().toISOString();
+  store.db.prepare("INSERT INTO discovery_jobs VALUES (?,?)").run(
+    jobIdentity(url),
+    JSON.stringify({
+      ...jobSchema.parse({
+        company: "Record error fixture",
+        title: "Software Engineer, New Grad",
+        location: "Denver",
+        employmentType: "Full-time",
+      }),
+      id: jobIdentity(url),
+      url,
+      description: "",
+      publishedAt: "",
+      firstSeenAt: now,
+      lastSeenAt: now,
+      baseline: false,
+      entryEvidence: "Entry-level title",
+      requiredYears: 0,
+      annualSalaryMax: null,
+      sources: { "github:simplify": { present: true, lastSeen: now } },
+      closed: false,
+      disposition: "new",
+      seenAt: "",
+      alertedAt: "",
+      applicationId: "",
+    }),
+  );
+  store.close();
+  await page.route("**/api/discovery/jobs/*/applied", (route) =>
+    route.fulfill({ status: 409, json: { error: "Fixture applied failure." } }),
+  );
+  await page.goto("/?view=discover");
+  const card = page.locator("article.discovery-job").filter({
+    has: page.getByText("Record error fixture", { exact: true }),
+  });
+  await card.getByRole("button", { name: "I applied", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog
+    .getByRole("button", { name: "Confirm application submitted" })
+    .click();
+  await expect(dialog.getByText("Fixture applied failure.")).toBeVisible();
+});
