@@ -1030,3 +1030,33 @@ test("idle waits for a running AI backfill so shutdown never closes the store un
   tracker.backfill.running = false;
   await idle;
 });
+test("merging keeps the more advanced stage and the latest status time", async (t) => {
+  const { tracker, store } = fixture(t);
+  const applied = tracker.create({
+    company: "Merge fixture",
+    title: "Engineer",
+    stage: "Applied",
+  });
+  const interviewing = tracker.create({
+    company: "Merge fixture",
+    title: "Engineer II",
+    stage: "Interviewing",
+  });
+  tracker.merge(interviewing.id, applied.id);
+  const merged = tracker.app(applied.id);
+  assert.equal(merged.stage, "Interviewing");
+  assert.equal(merged.manualStatusAt, interviewing.manualStatusAt);
+  assert.equal(merged.statusAt, interviewing.statusAt);
+  const rejected = tracker.create({
+    company: "Old attempt",
+    title: "Engineer",
+    stage: "Rejected",
+  });
+  store.put("applications", {
+    ...tracker.app(rejected.id),
+    statusAt: "2020-01-01T00:00:00.000Z",
+    manualStatusAt: "2020-01-01T00:00:00.000Z",
+  });
+  tracker.merge(rejected.id, applied.id);
+  assert.equal(tracker.app(applied.id).stage, "Interviewing");
+});

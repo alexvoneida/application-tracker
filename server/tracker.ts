@@ -881,6 +881,17 @@ export class Tracker {
         target.url = source.url;
         target.canonicalUrl = source.canonicalUrl;
       }
+      // A terminal stage on either side may belong to an older, separate
+      // attempt, so recency decides; otherwise the more advanced stage wins.
+      const sourceLeads =
+        terminal.has(source.stage) || terminal.has(target.stage)
+          ? source.statusAt > target.statusAt
+          : stageRank[source.stage] > stageRank[target.stage];
+      if (sourceLeads) {
+        target.stage = source.stage;
+        target.statusAt = source.statusAt;
+        target.manualStatusAt = source.manualStatusAt;
+      }
       target.updatedAt = now();
       target.lastActivity = [target.lastActivity, source.lastActivity]
         .sort()
@@ -897,6 +908,7 @@ export class Tracker {
           if (item.applicationId === from)
             this.store.put(table, { ...item, applicationId: into } as never);
       this.store.remove("applications", from);
+      if (terminal.has(target.stage)) this.dismissActions(into);
     });
     return target;
   }
