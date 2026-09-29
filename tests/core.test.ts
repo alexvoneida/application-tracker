@@ -205,6 +205,30 @@ test("job metadata preserves salary currency/period and remote geographic restri
   assert.match(parsed.text, /distributed systems/);
   assert.equal(parseJobPage("<h1>Job</h1>").fields.salary, "");
 });
+test("job metadata longer than the field limits is shortened instead of failing", () => {
+  const locations = Array.from({ length: 80 }, (_, index) => ({
+    address: {
+      addressLocality: `City ${index}`,
+      addressRegion: "Region",
+      addressCountry: "United States",
+    },
+  }));
+  const html = `<script type="application/ld+json">${JSON.stringify({
+    "@type": "JobPosting",
+    title: "Software Engineer",
+    jobLocation: locations,
+    baseSalary: {
+      currency: "United States dollars (USD)",
+      value: { minValue: 1, maxValue: 2, unitText: "YEAR" },
+    },
+  })}</script>`;
+  const { fields } = parseJobPage(html);
+  assert.equal(fields.location.length, 1000);
+  assert.ok(fields.location.startsWith("City 0, Region, United States · "));
+  assert.ok(fields.location.endsWith("…"));
+  assert.equal(fields.currency.length, 20);
+  assert.equal(fields.title, "Software Engineer");
+});
 test("job extraction saves snapshots and preserves user corrections on refresh", async (t) => {
   const { tracker, store } = fixture(t);
   const app = tracker.create({ url: "https://example.com/job/123" });

@@ -98,11 +98,25 @@ export function parseJobPage(html: string): {
     const text = p.description
       ? htmlText(String(p.description))
       : htmlText(html);
-    return { text, fields: jobSchema.parse(fields) };
+    return { text, fields: jobSchema.parse(fitJobFields(fields)) };
   }
   return { text: htmlText(html), fields };
 }
 
+// Website metadata can exceed what a user may type (e.g. 80 office locations),
+// so shorten it to the schema limits rather than rejecting the whole page.
+function fitJobFields(fields: JobFields): JobFields {
+  const fitted: Record<string, unknown> = { ...fields };
+  for (const [key, schema] of Object.entries(jobSchema.shape)) {
+    const inner = "unwrap" in schema ? schema.unwrap() : schema;
+    const limit = inner instanceof z.ZodString ? inner.maxLength : null;
+    const value = fitted[key];
+    if (typeof value === "string" && limit && value.length > limit)
+      fitted[key] =
+        `${value.slice(0, limit - 1).replace(/[\uD800-\uDBFF]$/, "")}…`;
+  }
+  return fitted as JobFields;
+}
 export function stripQuoted(text: string) {
   return text
     .split(/\n(?:On .+wrote:|From:|[- ]*Original Message[- ]*|>)/i)[0]
