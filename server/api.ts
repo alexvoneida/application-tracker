@@ -452,6 +452,11 @@ export function createApi(
     }
     const extraction = input.extraction || source.extraction;
     if (!extraction.eventType) throw new Error("Choose an event type.");
+    // Checked before "create" so a double-click cannot leave an empty application.
+    if (!["review", "failed"].includes(source.state))
+      throw new Error(
+        "This message has already been resolved or was not found.",
+      );
     let applicationId = input.applicationId;
     if (input.action === "create")
       applicationId = tracker.create({

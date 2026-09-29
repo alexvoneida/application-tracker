@@ -291,3 +291,80 @@ test("review queue is returned oldest first", async (t) => {
     ["oldest", "middle", "newest"],
   );
 });
+
+test("creating an application from an already resolved review email adds nothing", async (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "fieldwork-api-"));
+  const store = new Store(directory);
+  const vault = new Vault(directory);
+  const tracker = new Tracker(store, vault, {
+    linksFile: "",
+    importAfter: "2026-01-01",
+    gmailQuery: "application",
+    syncMinutes: 5,
+    aiEnabled: false,
+    aiProvider: "openai",
+    aiModel: "gpt-4.1-mini",
+    aiBaseUrl: "https://api.openai.com/v1",
+    claudeCodePath: "",
+    autoApplyAI: false,
+  });
+  const { app } = createApi(tracker, "http://127.0.0.1:3223", true);
+  const server = app.listen(3223, "127.0.0.1");
+  await new Promise<void>((r, j) => {
+    server.once("listening", r);
+    server.once("error", j);
+  });
+  t.after(async () => {
+    tracker.stop();
+    await tracker.idle();
+    await new Promise<void>((r) => server.close(() => r()));
+    store.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+  const base = "http://127.0.0.1:3223/api";
+  const { csrf } = (await (await fetch(`${base}/state`)).json()) as any;
+  const extraction = emailSchema.parse({
+    relevant: true,
+    company: "Double click fixture",
+    title: "Software Engineer",
+    postingId: "",
+    url: "",
+    eventType: "application_confirmed",
+    confidence: 0.6,
+    occurredAt: "",
+    dueAt: "",
+    timeZone: "",
+    explanation: "",
+    multipleRoles: false,
+  });
+  store.put("sources", {
+    id: "double",
+    account: "test@example.com",
+    messageId: "double",
+    threadId: "double",
+    subject: "Thanks for applying",
+    from: "jobs@example.com",
+    excerpt: "",
+    receivedAt: "2026-03-01T09:00:00.000Z",
+    extraction,
+    method: "rules",
+    state: "review",
+    reason: "",
+    applicationId: "",
+    candidates: [],
+    matchConfidence: 0,
+  });
+  const create = () =>
+    fetch(`${base}/review/double`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-tracker-token": csrf,
+        origin: "http://127.0.0.1:3223",
+      },
+      body: JSON.stringify({ action: "create", extraction }),
+    });
+  const [first, second] = await Promise.all([create(), create()]);
+  assert.equal([first, second].filter((response) => response.ok).length, 1);
+  assert.equal(tracker.apps().length, 1);
+});
