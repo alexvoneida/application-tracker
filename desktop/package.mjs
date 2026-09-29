@@ -1,7 +1,7 @@
 import { packager } from "@electron/packager";
 import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { root } from "./build.mjs";
+import { root, appName, artifactName } from "./build.mjs";
 
 if (process.platform !== "darwin")
   throw new Error("Build the macOS app on a Mac.");
@@ -27,8 +27,8 @@ const paths = await packager({
   arch: process.arch,
   electronVersion,
   overwrite: true,
-  name: "Fieldwork",
-  executableName: "Fieldwork",
+  name: appName,
+  executableName: artifactName,
   appBundleId: "local.fieldwork.tracker",
   appCategoryType: "public.app-category.productivity",
   icon: join(root, ".desktop-build/Fieldwork.icns"),
@@ -66,8 +66,8 @@ for (const path of paths) {
   await access(
     join(
       path,
-      "Fieldwork.app/Contents/Resources/app.asar.unpacked/.desktop-build/notification-permissions.node",
+      `${appName}.app/Contents/Resources/app.asar.unpacked/.desktop-build/notification-permissions.node`,
     ),
   );
-  console.log(`Packaged: ${path}/Fieldwork.app`);
+  console.log(`Packaged: ${path}/${appName}.app`);
 }

@@ -6,6 +6,11 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 export const root = dirname(dirname(fileURLToPath(import.meta.url)));
+// Shown in Finder, the Dock, and the menu bar; file names use the dashed form.
+// The internal app name (data folder, Keychain entry) stays "Fieldwork", which
+// is also why package.json's productName is still "Fieldwork".
+export const appName = "application tracker";
+export const artifactName = "application-tracker";
 export async function buildDesktop() {
   const output = join(root, ".desktop-build");
   await mkdir(output, { recursive: true });

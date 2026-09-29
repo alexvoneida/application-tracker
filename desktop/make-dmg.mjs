@@ -3,18 +3,18 @@ import { cp, mkdir, mkdtemp, readFile, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { root } from "./build.mjs";
+import { root, appName, artifactName } from "./build.mjs";
 
 if (process.platform !== "darwin")
   throw new Error("Build the Mac installer on macOS.");
 const { version } = JSON.parse(
   await readFile(join(root, "package.json"), "utf8"),
 );
-const stage = await mkdtemp(join(tmpdir(), "fieldwork-dmg-"));
+const stage = await mkdtemp(join(tmpdir(), "application-tracker-dmg-"));
 try {
   await cp(
-    join(root, "out", `Fieldwork-darwin-${process.arch}`, "Fieldwork.app"),
-    join(stage, "Fieldwork.app"),
+    join(root, "out", `${appName}-darwin-${process.arch}`, `${appName}.app`),
+    join(stage, `${appName}.app`),
     { recursive: true, verbatimSymlinks: true },
   );
   await symlink("/Applications", join(stage, "Applications"));
@@ -22,28 +22,28 @@ try {
   const zip = join(
     root,
     "out/make",
-    `Fieldwork-${version}-${process.arch}.zip`,
+    `${artifactName}-${version}-${process.arch}.zip`,
   );
   execFileSync("ditto", [
     "-c",
     "-k",
     "--sequesterRsrc",
     "--keepParent",
-    join(stage, "Fieldwork.app"),
+    join(stage, `${appName}.app`),
     zip,
   ]);
   console.log(`ZIP: ${zip}`);
   const destination = join(
     root,
     "out/make",
-    `Fieldwork-${version}-${process.arch}.dmg`,
+    `${artifactName}-${version}-${process.arch}.dmg`,
   );
   execFileSync(
     "hdiutil",
     [
       "create",
       "-volname",
-      "Fieldwork",
+      appName,
       "-srcfolder",
       stage,
       "-ov",

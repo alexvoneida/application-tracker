@@ -15,7 +15,7 @@ export async function desktopVault(directory: string) {
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   if (!(await safeStorage.isAsyncEncryptionAvailable()))
     throw new Error(
-      "macOS Keychain encryption is unavailable. Unlock your Keychain and reopen Fieldwork.",
+      "can't use the macos keychain. unlock it and reopen the app.",
     );
   const path = join(directory, "vault-key.enc");
   let key: Buffer;
@@ -27,13 +27,13 @@ export async function desktopVault(directory: string) {
   } else {
     if (existsSync(join(directory, "secrets.enc")))
       throw new Error(
-        "The desktop credential key is missing. Restore your desktop data directory or use a fresh instance and import a JSON backup.",
+        "the credential key is missing. restore the data folder, or start fresh and import a backup.",
       );
     key = randomBytes(32);
     save = true;
   }
   if (key.length !== 32)
-    throw new Error("The desktop credential key is invalid.");
+    throw new Error("the credential key is invalid");
   if (save) {
     const encrypted = await safeStorage.encryptStringAsync(
       key.toString("base64"),

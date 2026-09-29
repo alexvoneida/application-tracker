@@ -33,7 +33,7 @@ test("desktop tray preference, secure bridge, records and graceful quit survive 
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await expect(
-      page.getByRole("heading", { name: "Your search, in perspective." }),
+      page.getByRole("heading", { name: "how it's going" }),
     ).toBeVisible();
     expect(await page.evaluate(() => typeof (globalThis as any).require)).toBe(
       "undefined",
@@ -71,7 +71,7 @@ test("desktop tray preference, secure bridge, records and graceful quit survive 
       await desktop.evaluate(
         () => (globalThis as any).__fieldworkTestNotification.title,
       ),
-    ).toContain("Fieldwork");
+    ).toContain("application tracker");
     await expect(
       page.evaluate(() =>
         window.fieldworkDesktop!.openGoogleAuth("file:///etc/passwd"),
@@ -83,20 +83,20 @@ test("desktop tray preference, secure bridge, records and graceful quit survive 
       ),
     ).rejects.toThrow("Expected a boolean");
     await page
-      .getByRole("button", { name: "Add application", exact: true })
+      .getByRole("button", { name: "add application", exact: true })
       .click();
     await page
-      .getByRole("textbox", { name: "Company", exact: true })
+      .getByRole("textbox", { name: "company", exact: true })
       .fill("Desktop persistence");
     await page
-      .getByRole("textbox", { name: "Job title", exact: true })
+      .getByRole("textbox", { name: "job title", exact: true })
       .fill("Software Engineer");
     await page
       .getByRole("dialog")
-      .getByRole("button", { name: "Add application", exact: true })
+      .getByRole("button", { name: "add application", exact: true })
       .click();
-    await page.getByRole("button", { name: "Close dialog" }).click();
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("button", { name: "close" }).click();
+    await page.getByRole("button", { name: "settings", exact: true }).click();
     const links = join(directory, "applications.txt");
     writeFileSync(links, "# Desktop test links\n");
     await desktop.evaluate(({ dialog }, path) => {
@@ -105,18 +105,14 @@ test("desktop tray preference, secure bridge, records and graceful quit survive 
         filePaths: [path],
       });
     }, links);
-    await page.getByRole("button", { name: "Choose text file…" }).click();
-    await expect(
-      page.getByLabel("Absolute path to your text file"),
-    ).toHaveValue(links);
-    await page.getByLabel("Provider", { exact: true }).selectOption("openai");
+    await page.getByRole("button", { name: "pick file…" }).click();
+    await expect(page.getByLabel("full path to the file")).toHaveValue(links);
+    await page.getByLabel("provider", { exact: true }).selectOption("openai");
     await page
-      .getByLabel("API key", { exact: true })
+      .getByLabel("api key", { exact: true })
       .fill("desktop-fixture-key");
-    await page.getByRole("button", { name: "Save settings" }).click();
-    await expect(
-      page.getByText("Settings saved.", { exact: true }),
-    ).toBeVisible();
+    await page.getByRole("button", { name: "save", exact: true }).click();
+    await expect(page.getByText("saved", { exact: true })).toBeVisible();
     expect(
       readFileSync(join(directory, "secrets.enc")).includes(
         Buffer.from("desktop-fixture-key"),
@@ -128,7 +124,7 @@ test("desktop tray preference, secure bridge, records and graceful quit survive 
         item.setSavePath(path),
       );
     }, exported);
-    await page.getByRole("link", { name: "Download full backup" }).click();
+    await page.getByRole("link", { name: "download backup" }).click();
     await expect.poll(() => existsSync(exported)).toBe(true);
     const backup = readFileSync(exported, "utf8");
     expect(JSON.parse(backup).tables.applications[0].company).toBe(
@@ -136,7 +132,7 @@ test("desktop tray preference, secure bridge, records and graceful quit survive 
     );
     expect(backup).not.toContain("desktop-fixture-key");
     const option = page.getByRole("checkbox", {
-      name: "Keep running in the menu bar",
+      name: "keep running in the menu bar",
     });
     await expect(option).not.toBeChecked();
     await option.check();
@@ -167,7 +163,7 @@ test("desktop tray preference, secure bridge, records and graceful quit survive 
         );
       })
       .toBe(true);
-    // Same handler used by a Dock click and the tray's Open Fieldwork command.
+    // Same handler used by a Dock click and the tray's open command.
     await desktop.evaluate(({ app }) => app.emit("activate"));
     await expect
       .poll(() =>
@@ -192,20 +188,18 @@ test("desktop tray preference, secure bridge, records and graceful quit survive 
     page = await desktop.firstWindow();
     await expect(
       page.getByRole("button", {
-        name: "Open Desktop persistence",
+        name: "open Desktop persistence",
         exact: true,
       }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("button", { name: "settings", exact: true }).click();
+    await expect(page.getByText("key saved", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("api key", { exact: true })).toHaveValue("");
     await expect(
-      page.getByText("Key configured", { exact: true }),
-    ).toBeVisible();
-    await expect(page.getByLabel("API key", { exact: true })).toHaveValue("");
-    await expect(
-      page.getByRole("checkbox", { name: "Keep running in the menu bar" }),
+      page.getByRole("checkbox", { name: "keep running in the menu bar" }),
     ).toBeChecked();
     await page
-      .getByRole("checkbox", { name: "Keep running in the menu bar" })
+      .getByRole("checkbox", { name: "keep running in the menu bar" })
       .uncheck();
     await expect
       .poll(() =>

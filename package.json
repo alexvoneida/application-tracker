@@ -3,8 +3,8 @@
   "version": "0.4.3",
   "private": true,
   "productName": "Fieldwork",
-  "description": "A private, local job application tracker",
-  "author": "Fieldwork contributors",
+  "description": "my job application tracker",
+  "author": "alexvoneida",
   "main": ".desktop-build/main.cjs",
   "type": "module",
   "engines": {

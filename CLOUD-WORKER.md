@@ -1,15 +1,15 @@
 # Always-on job alerts
 
-Fieldwork has two independent notification paths:
+The app has two independent notification paths:
 
-- **Mac:** Discover → save preferences with notifications enabled, or click **Test Mac notification**, to request macOS permission if undecided. The observed status and timestamps are saved locally and rechecked against macOS. If denied, use **Open macOS Notification Settings**; the OS does not repeat the initial prompt. Start monitoring to receive matching-job alerts while the desktop app is running and your Mac is awake/online. Enable “Keep running in the menu bar” in Settings if you want to close its window. Check Focus settings and use a signed app build.
+- **Mac:** Discover → save preferences with notifications enabled, or click **test notification**, to request macOS permission if undecided. The observed status and timestamps are saved locally and rechecked against macOS. If denied, use **Open macOS Notification Settings**; the OS does not repeat the initial prompt. Start monitoring to receive matching-job alerts while the desktop app is running and your Mac is awake/online. Enable “Keep running in the menu bar” in Settings if you want to close its window. Check Focus settings and use a signed app build.
 - **Phone:** the discovery-only cloud worker sends a private Telegram message with an **Open application** button. Your Mac can be off. This is a Telegram push notification, not carrier SMS. [Telegram bot messages are free within rate limits](https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this); this worker explicitly disables paid broadcasting. Cloud hosting/storage may still cost money.
 
 The cloud worker is a continuously running **Node/container process**, not a Cloudflare Worker or static GitHub Pages site. It exposes no web port and needs only outbound HTTPS, a persistent disk, and its own configuration/secrets. Do not deploy the local Express/Gmail server publicly.
 
 ## 1. Export your search
 
-In Fieldwork, save Discover’s search preferences. Expand **Always-on phone alerts · Telegram** and download `fieldwork-worker.json`. Put it in the project root on the worker host, or mount it as a private configuration file.
+In the app, save the filters in find jobs. Expand **phone alerts (telegram)** and download `fieldwork-worker.json`. Put it in the project root on the worker host, or mount it as a private configuration file.
 
 This export contains filters and supported board URLs only. It enables cloud monitoring and notifications, even if local monitoring is paused. It does **not** include Gmail credentials, AI keys, application history, discovered-job history, or Telegram credentials. Each newly checked source creates a quiet baseline: existing openings will not all trigger notifications at startup.
 
@@ -67,7 +67,7 @@ Keep the chat unmuted. Telegram API acceptance does not prove a phone notificati
 
 Use an existing Linux VM with Docker/Compose, or a container host that supports a **non-sleeping background process and persistent volume**. A free web tier that sleeps or ephemeral scheduled jobs will not provide continuous near-real-time checks. No hosting account, infrastructure, or paid plan is provisioned by this project.
 
-Upload the project source, `fieldwork-worker.json`, and private `.env.worker` to that machine. Never upload your Mac’s Fieldwork data directory or `.data/`. The Docker build context allowlist includes only `package*.json`, `server/`, and `shared/`; tokens and config are mounted at runtime, not baked into an image.
+Upload the project source, `fieldwork-worker.json`, and private `.env.worker` to that machine. Never upload your Mac’s app data directory or `.data/`. The Docker build context allowlist includes only `package*.json`, `server/`, and `shared/`; tokens and config are mounted at runtime, not baked into an image.
 
 ```sh
 docker compose -f compose.worker.yml up -d --build

@@ -31,7 +31,14 @@ import type { DesktopPreferences } from "../shared/desktop";
 
 const development = !app.isPackaged;
 const liveDevelopment = development && process.argv.includes("--desktop-dev");
+// The internal name stays "Fieldwork" even though the app is now called
+// "application tracker": it names the data folder and the Keychain entry that
+// protects saved credentials, so changing it would strand both.
 app.setName(development ? "Fieldwork Dev" : "Fieldwork");
+const displayName = development
+  ? "application tracker (dev)"
+  : "application tracker";
+app.setAboutPanelOptions({ applicationName: displayName });
 // No checkout .env in desktop mode. An explicit profile switch permits isolated
 // recovery/testing without touching the normal Application Support directory.
 const profile = app.commandLine.getSwitchValue("fieldwork-data-dir");
@@ -72,7 +79,7 @@ function showWindow() {
 }
 
 const notificationPermissionMessage =
-  "Allow Mac notifications from Discover’s Save preferences or Test Mac notification button. Matches remain in Discover.";
+  "notifications aren't allowed yet. hit save or test notification in find jobs to allow them (matches still show up there)";
 // Electron may garbage-collect a Notification after show(), silently dropping
 // its click and failed handlers, so each one is held until it is finished.
 const shownNotifications = new Set<Notification>();
@@ -121,19 +128,19 @@ function updateTray() {
     );
     icon.setTemplateImage(true);
     tray = new Tray(icon);
-    tray.setToolTip("Fieldwork — application tracker");
+    tray.setToolTip(displayName);
     tray.on("click", showWindow);
   }
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: "Open Fieldwork", click: showWindow },
+      { label: `open ${displayName}`, click: showWindow },
       { type: "separator" },
       {
-        label: "File scanning and scheduled Gmail sync are active",
+        label: "links file + gmail sync are running",
         enabled: false,
       },
       {
-        label: "Sync Gmail now",
+        label: "sync gmail now",
         enabled: Boolean(runtime?.tracker.vault.get("gmailTokens")),
         click: async () => {
           // Use the same local API and per-process token as the window.
@@ -152,7 +159,7 @@ function updateTray() {
             });
             if (!result.ok)
               throw new Error(
-                "Gmail sync could not start. Open Settings to check the connection.",
+                "gmail sync didn't start. check the connection in settings.",
               );
           } catch {
             showWindow();
@@ -161,7 +168,7 @@ function updateTray() {
       },
       { type: "separator" },
       {
-        label: "Quit Fieldwork",
+        label: `quit ${displayName}`,
         accelerator: "Command+Q",
         click: () => app.quit(),
       },
@@ -187,8 +194,8 @@ async function openExternal(url: string) {
   } catch {
     void dialog.showMessageBox({
       type: "error",
-      message: "Could not open your browser.",
-      detail: "Check your default browser in macOS Settings.",
+      message: "couldn't open the browser",
+      detail: "check the default browser in macos settings",
     });
   }
 }
@@ -209,34 +216,34 @@ async function start() {
         throw new Error(notificationPermissionMessage);
       if (!Notification.isSupported())
         throw new Error(
-          "Could not show Mac notifications. Check notification permission in Discover.",
+          "couldn't show notifications. check the permission in find jobs.",
         );
       // Limit bursts; every match remains visible in Discover.
       for (const job of jobs.slice(0, 3))
         showNotification(
           {
             title: `${job.company} is hiring`,
-            body: `${job.title}\n${job.location || "Location not listed"}`,
+            body: `${job.title}\n${job.location || "location not listed"}`,
             silent: false,
           },
           () => {
             showWindow();
             void openExternal(job.url);
           },
-          "macOS could not display an alert. Check System Settings → Notifications → Fieldwork.",
+          "macos couldn't show the notification. check system settings → notifications → application tracker.",
         );
       if (jobs.length > 3)
         showNotification(
           {
-            title: "More new SWE matches",
-            body: `${jobs.length - 3} additional roles. Open Discover to see all matches.`,
+            title: "more new matches",
+            body: `${jobs.length - 3} more, open find jobs to see them all`,
           },
           () => {
             showWindow();
             if (window && runtime)
               void window.loadURL(`${runtime.origin}/?view=discover`);
           },
-          "macOS could not display an alert. Check System Settings → Notifications → Fieldwork.",
+          "macos couldn't show the notification. check system settings → notifications → application tracker.",
         );
     },
     onOAuthComplete: (connected) => {
@@ -269,7 +276,7 @@ async function start() {
     height: 880,
     minWidth: 800,
     minHeight: 580,
-    title: "Fieldwork",
+    title: displayName,
     backgroundColor: "#f5f5ef",
     show: false,
     webPreferences: {
@@ -311,7 +318,7 @@ async function start() {
       return;
     }
     item.setSaveDialogOptions({
-      title: "Save Fieldwork export",
+      title: "save export",
       defaultPath: join(app.getPath("downloads"), item.getFilename()),
     });
   });
@@ -347,15 +354,15 @@ async function start() {
     const permission = await notificationPermission!.check(true);
     if (!canNotify(permission) || quitting) return permission;
     if (!Notification.isSupported())
-      throw new Error("Notifications are unavailable on this system.");
+      throw new Error("notifications don't work on this system");
     clearNotificationError(false);
     showNotification(
       {
-        title: "Fieldwork alerts are ready",
-        body: "New matching software engineering roles will appear here while Fieldwork is running.",
+        title: "application tracker notifications work",
+        body: "new job matches will show up like this while the app is open",
       },
       showWindow,
-      "The test notification failed. Check macOS notification settings and the app’s code signing.",
+      "test notification failed. check macos notification settings (and that the app is signed)",
     );
     return permission;
   });
@@ -371,16 +378,16 @@ async function start() {
   ipcMain.handle("desktop:choose-links", async (event) => {
     trust(event);
     const result = await dialog.showOpenDialog(window!, {
-      title: "Choose your application links file",
+      title: "pick the links file",
       properties: ["openFile"],
-      filters: [{ name: "Text files", extensions: ["txt"] }],
+      filters: [{ name: "text files", extensions: ["txt"] }],
     });
     return result.canceled ? null : (result.filePaths[0] ?? null);
   });
   ipcMain.handle("desktop:open-data", async (event) => {
     trust(event);
     const error = await shell.openPath(dataDirectory);
-    if (error) throw new Error("Could not open the data folder.");
+    if (error) throw new Error("couldn't open the data folder");
   });
   ipcMain.handle("desktop:google-auth", async (event, url: unknown) => {
     trust(event);
@@ -391,15 +398,15 @@ async function start() {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
       {
-        label: "Fieldwork",
+        label: displayName,
         submenu: [
-          { role: "about" },
+          { role: "about", label: `about ${displayName}` },
           { type: "separator" },
-          { role: "hide" },
+          { role: "hide", label: `hide ${displayName}` },
           { role: "hideOthers" },
           { role: "unhide" },
           { type: "separator" },
-          { role: "quit" },
+          { role: "quit", label: `quit ${displayName}` },
         ],
       },
       { role: "editMenu" },
@@ -420,7 +427,7 @@ async function start() {
   updateTray();
   await window.loadURL(runtime.origin);
   showWindow();
-  if (development) console.log("Fieldwork desktop ready.");
+  if (development) console.log("desktop app ready.");
 }
 
 app.on("before-quit", (event) => {
@@ -432,7 +439,7 @@ app.on("before-quit", (event) => {
   tray?.destroy();
   tray = undefined;
   if (window && !window.isDestroyed()) {
-    window.setTitle("Fieldwork — finishing pending work…");
+    window.setTitle(`${displayName} — finishing up…`);
     window.hide();
   }
   void (async () => {
@@ -440,7 +447,7 @@ app.on("before-quit", (event) => {
     // holding the single-instance lock, so stop waiting after the limit.
     const drained = await settleWithin(
       runtime?.stop().catch((error) => {
-        console.error("Fieldwork could not finish pending work:", error);
+        console.error("couldn't finish pending work:", error);
       }) ?? Promise.resolve(),
       shutdownMilliseconds,
     );
@@ -449,7 +456,7 @@ app.on("before-quit", (event) => {
       // must not run and record "failed" results while the store shuts down.
       stopClaudeCode();
       console.error(
-        `Fieldwork quit before pending work finished (waited ${shutdownMilliseconds / 1000}s).`,
+        `quit before pending work finished (waited ${shutdownMilliseconds / 1000}s)`,
       );
       app.exit(0);
       return;
@@ -472,8 +479,8 @@ if (!app.requestSingleInstanceLock()) {
   app.on("second-instance", showWindow);
   void start().catch((error) => {
     dialog.showErrorBox(
-      "Fieldwork could not start",
-      error instanceof Error ? error.message : "Try reopening the app.",
+      `${displayName} couldn't start`,
+      error instanceof Error ? error.message : "try opening it again",
     );
     app.quit();
   });

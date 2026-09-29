@@ -1,14 +1,14 @@
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { createRequire } from "node:module";
-import { root } from "./build.mjs";
+import { root, appName, artifactName } from "./build.mjs";
 
 const require = createRequire(import.meta.url);
 const executable = join(
   root,
   "out",
-  `Fieldwork-darwin-${process.arch}`,
-  "Fieldwork.app/Contents/MacOS/Fieldwork",
+  `${appName}-darwin-${process.arch}`,
+  `${appName}.app/Contents/MacOS/${artifactName}`,
 );
 execFileSync(
   process.execPath,

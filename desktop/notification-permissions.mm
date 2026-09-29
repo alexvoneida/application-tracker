@@ -5,7 +5,7 @@
 #include <memory>
 #include <string>
 
-// In-process bridge: authorization belongs to Fieldwork's bundle, not a helper.
+// In-process bridge: authorization belongs to the app's own bundle, not a helper.
 struct Result {
   dispatch_semaphore_t done = dispatch_semaphore_create(0);
   std::string status;

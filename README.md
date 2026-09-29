@@ -1,4 +1,4 @@
-# Fieldwork
+# application tracker
 
 A private, local application tracker for your full-time software engineering search. Capture applications from a text file or the UI, save job descriptions, and connect your own Gmail account to collect hiring updates.
 
@@ -11,7 +11,7 @@ npm ci
 npm run desktop:make
 ```
 
-Find `Fieldwork.app` in `out/Fieldwork-darwin-arm64/` on Apple Silicon (`x64` on Intel). A drag-to-Applications installer is created at `out/make/Fieldwork-0.2.0-arm64.dmg`, alongside a ZIP in `out/make/`. Open the DMG and drag Fieldwork into Applications, or copy the `.app` there. Launch it from Finder, Spotlight, or the Dock. No terminal or `npm run dev` is needed afterward.
+Find `application tracker.app` in `out/application tracker-darwin-arm64/` on Apple Silicon (`x64` on Intel). A drag-to-Applications installer is created at `out/make/application-tracker-<version>-arm64.dmg`, alongside a ZIP in `out/make/`. Open the DMG and drag the app into Applications, or copy the `.app` there. Launch it from Finder, Spotlight, or the Dock. No terminal or `npm run dev` is needed afterward.
 
 The build targets the architecture of the Mac doing the build. Build/test the Intel version on an Intel Mac before sharing it with Intel users. This is not a universal binary.
 
@@ -21,7 +21,7 @@ The desktop has a native text-file picker and opens Gmail authorization in your 
 
 ### Desktop data and existing web records
 
-- Installed app: `~/Library/Application Support/Fieldwork/tracker.sqlite`.
+- Installed app: `~/Library/Application Support/Fieldwork/tracker.sqlite` (the folder keeps the app's original name).
 - Development app: `~/Library/Application Support/Fieldwork Dev/tracker.sqlite` (separate, intentional).
 - Browser/CLI mode: the existing `.data/tracker.sqlite`, unchanged.
 
@@ -88,7 +88,7 @@ https://example.com/careers/software-engineer
 2026-09-20 | https://example.com/jobs/123
 ```
 
-Fieldwork polls the saved path every two seconds while its process is running, after writes have settled. It leaves your file unchanged. Duplicate lines, file reordering, and rescans do not duplicate applications; removing a line does not delete its record.
+The app polls the saved path every two seconds while its process is running, after writes have settled. It leaves your file unchanged. Duplicate lines, file reordering, and rescans do not duplicate applications; removing a line does not delete its record.
 
 A bare link uses the local date it is **first imported**, labeled “file default.” The app cannot know when you added a link while it was stopped. Correct that date in the role details or supply an explicit date in the file. An explicit **new application to a previously tracked posting** checkbox supports reapplications from the Add dialog.
 
@@ -99,12 +99,12 @@ Each user supplies their own Google project/client configuration:
 1. Create/select a project in [Google Cloud Console](https://console.cloud.google.com/).
 2. Enable **Gmail API** for that project.
 3. Configure the OAuth consent screen for personal testing; add your Gmail address as a test user. Configure `https://www.googleapis.com/auth/gmail.readonly`.
-4. Create an OAuth client of type **Desktop app**. Copy its client ID and client secret into Fieldwork’s Settings, then save.
-5. Click **Connect Gmail** and authorize in your normal browser. Fieldwork uses PKCE and a one-time state value with a loopback callback at `http://127.0.0.1:3210/oauth/callback` (or your configured port). The desktop app automatically chooses an available loopback port, supported by Desktop OAuth clients.
+4. Create an OAuth client of type **Desktop app**. Copy its client ID and client secret into the app's settings, then save.
+5. Click **connect gmail** and authorize in your normal browser. The app uses PKCE and a one-time state value with a loopback callback at `http://127.0.0.1:3210/oauth/callback` (or your configured port). The desktop app automatically chooses an available loopback port, supported by Desktop OAuth clients.
 
 Read-only authorization permits reading the mailbox; the app’s Gmail search selects candidate hiring messages. It never marks messages read, sends mail, or modifies Gmail. [Google’s scope reference](https://developers.google.com/workspace/gmail/api/auth/scopes)
 
-Testing-mode Google OAuth projects generally receive Gmail refresh tokens that expire after **seven days**. Fieldwork will ask you to reconnect when authorization expires. Workspace administrators may also restrict access. Private local use does not itself determine which Google verification requirements apply. [Google’s OAuth guide](https://developers.google.com/identity/protocols/oauth2), [Desktop authorization](https://developers.google.com/identity/protocols/oauth2/native-app)
+Testing-mode Google OAuth projects generally receive Gmail refresh tokens that expire after **seven days**. The app will ask you to reconnect when authorization expires. Workspace administrators may also restrict access. Private local use does not itself determine which Google verification requirements apply. [Google’s OAuth guide](https://developers.google.com/identity/protocols/oauth2), [Desktop authorization](https://developers.google.com/identity/protocols/oauth2/native-app)
 
 The initial window defaults to 90 days. Subsequent polling overlaps the last successful scan by one day; failed fetches preserve the previous checkpoint. Use **Rescan saved date range** after widening the date range/query or importing old messages into Gmail. This is local polling, not an always-running cloud subscription. Archived mail is included; spam and trash are excluded.
 
@@ -120,15 +120,15 @@ The adapter validates output against an application schema. [OpenAI JSON mode do
 
 ## Everyday use
 
-**Mac notification permission:** in Discover, **Save discovery preferences** (with notifications checked) or **Test Mac notification** requests macOS alert/sound/badge permission if it has not been decided. The app stores the observed permission status and request/check timestamps in the local SQLite settings; it re-reads the OS state rather than treating a cached approval as permanent. Saving with notifications disabled does not prompt. If access was denied, use **Open macOS Notification Settings**; macOS will not show the original consent dialog repeatedly. Returning to Fieldwork refreshes the status. Allowed permission does not override Focus mode or disabled banners/sounds. The development Electron app and installed Fieldwork app have different bundle identities and permissions. Older unsigned packages need a newly signed build before the native notification APIs can work reliably. See [Electron's notification requirements](https://www.electronjs.org/docs/latest/api/notification).
+**Mac notification permission:** in Discover, **save filters** (with notifications checked) or **test notification** requests macOS alert/sound/badge permission if it has not been decided. The app stores the observed permission status and request/check timestamps in the local SQLite settings; it re-reads the OS state rather than treating a cached approval as permanent. Saving with notifications disabled does not prompt. If access was denied, use **open notification settings**; macOS will not show the original consent dialog repeatedly. Returning to the app refreshes the status. Allowed permission does not override Focus mode or disabled banners/sounds. The development Electron app and installed app have different bundle identities and permissions. Older unsigned packages need a newly signed build before the native notification APIs can work reliably. See [Electron's notification requirements](https://www.electronjs.org/docs/latest/api/notification).
 
 - **My applications:** searchable, filterable table; summary counts; 14-day activity chart; current-stage distribution. `/` focuses search and `n` opens Add.
-- **Discover jobs:** monitor Simplify’s SWE new-grad list and public Greenhouse/Lever/Ashby boards, filter by location/experience/salary/keywords, and receive native Mac alerts for newly detected matches. Start monitoring explicitly; the first check establishes a quiet baseline. Opening a role does not mark it applied—use **I applied** after submitting.
+- **find jobs:** monitor Simplify’s SWE new-grad list and public Greenhouse/Lever/Ashby boards, filter by location/experience/salary/keywords, and receive native Mac alerts for newly detected matches. Start monitoring explicitly; the first check establishes a quiet baseline. Opening a role does not mark it applied—use **I applied** after submitting.
 - **Role details:** edit dates, status, compensation, work arrangement, responsibilities, technologies, and notes. Manual edits take priority over extraction.
 - **Timeline:** inspect events and their email evidence. A delayed confirmation does not move an interviewing application back to Applied.
 - **Saved description:** inspect older snapshots, paste a description, or refresh a public posting. Blocked, login-required, or expired pages have a paste fallback.
-- **Review inbox:** inspect extracted email events, match them to a role, create a new application, dismiss unrelated mail, or retry a failed extraction. Company-name matches alone never automatically select a role.
-- **Next actions:** pending assessments and interviews, including missing-date/time-zone indicators. Edit timing, complete, or dismiss actions here.
+- **emails to sort:** inspect extracted email events, match them to a role, create a new application, dismiss unrelated mail, or retry a failed extraction. Company-name matches alone never automatically select a role.
+- **to do:** pending assessments and interviews, including missing-date/time-zone indicators. Edit timing, complete, or dismiss actions here.
 
 Conservative automation: explicit rule-based events can attach automatically to an exact job identity or uniquely associated thread. AI results require review by default. Settings includes an opt-in for strong AI matches, but confidence values are **heuristic scores, not calibrated probabilities**. Multi-role and conflicting terminal-status changes go to review. New email-only roles are created through review so speculative classifications do not silently grow your application list.
 

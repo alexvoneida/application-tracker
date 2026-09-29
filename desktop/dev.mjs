@@ -37,7 +37,7 @@ async function restart() {
     });
     child.on("error", (error) => console.error(error.message));
     console.log(
-      "Fieldwork Dev started. Source edits rebuild and restart the app; saved data is preserved. Ctrl+C stops the watcher.",
+      "dev app started. edits rebuild and restart it, data is kept. ctrl+c to stop.",
     );
   } catch (error) {
     console.error(error);

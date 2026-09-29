@@ -29,7 +29,7 @@ test("desktop development restarts on a frontend source edit", async () => {
   });
   try {
     await expect
-      .poll(() => output.split("Fieldwork desktop ready.").length - 1, {
+      .poll(() => output.split("desktop app ready.").length - 1, {
         message: "Vite-backed desktop should start",
         timeout: 20000,
       })
@@ -39,7 +39,7 @@ test("desktop development restarts on a frontend source edit", async () => {
     // Notify the watcher without changing any source contents.
     utimesSync(source, stat.atime, new Date());
     await expect
-      .poll(() => output.split("Fieldwork desktop ready.").length - 1, {
+      .poll(() => output.split("desktop app ready.").length - 1, {
         message: "Source edit should restart the desktop",
         timeout: 20000,
       })

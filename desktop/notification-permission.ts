@@ -27,7 +27,7 @@ export class NotificationPermission {
     const previous = this.active;
     const work = (async () => {
       if (previous) await previous;
-      if (this.stopped) throw new Error("Fieldwork is shutting down.");
+      if (this.stopped) throw new Error("shutting down");
       const saved = this.store.setting<DesktopNotificationPermission | null>(
         "desktopNotificationPermission",
         null,
@@ -54,7 +54,7 @@ export class NotificationPermission {
         if (result.didRequest) record.requestedAt = new Date().toISOString();
       } catch {
         record.error =
-          "Could not read or request macOS notification permission. Use a signed Fieldwork app built with the notification bridge, then try again.";
+          "couldn't check notification permission. this only works in the built app, then try again.";
       }
       record.checkedAt = new Date().toISOString();
       if (!this.stopped)

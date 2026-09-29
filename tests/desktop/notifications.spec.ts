@@ -21,7 +21,7 @@ test("Mac notification permission is requested on save/test, persisted, and rech
   try {
     const page = await desktop.firstWindow();
     await expect(
-      page.getByRole("heading", { name: "Your search, in perspective." }),
+      page.getByRole("heading", { name: "how it's going" }),
     ).toBeVisible();
     // Load the real native bridge, but replace OS calls before any permission
     // requests: tests must never answer or change the user's system consent.
@@ -68,25 +68,18 @@ test("Mac notification permission is requested on save/test, persisted, and rech
     expect(["not-determined", "denied", "authorized", "provisional"]).toContain(
       observed.status,
     );
-    await page
-      .getByRole("button", { name: "Discover jobs", exact: true })
-      .click();
-    await page
-      .getByText("Search preferences & alerts", { exact: true })
-      .click();
+    await page.getByRole("button", { name: "find jobs", exact: true }).click();
+    await page.getByText("filters & alerts", { exact: true }).click();
     await expect(
-      page.getByText("Mac notification permission has not been decided yet.", {
+      page.getByText("haven't allowed or blocked notifications yet", {
         exact: true,
       }),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: "Save discovery preferences", exact: true })
+      .getByRole("button", { name: "save filters", exact: true })
       .click();
     await expect(
-      page.getByText(
-        "Discovery preferences saved. Mac notification permission is allowed.",
-        { exact: true },
-      ),
+      page.getByText("saved. notifications are on", { exact: true }),
     ).toBeVisible();
     expect(
       await desktop.evaluate(
@@ -99,7 +92,7 @@ test("Mac notification permission is requested on save/test, persisted, and rech
     expect(saved.requestedAt).toBeTruthy();
     store.close();
     await page
-      .getByRole("button", { name: "Test Mac notification", exact: true })
+      .getByRole("button", { name: "test notification", exact: true })
       .click();
     await expect
       .poll(() =>
@@ -115,10 +108,10 @@ test("Mac notification permission is requested on save/test, persisted, and rech
       (globalThis as any).__notificationFixture.status = "denied";
     });
     await page
-      .getByRole("button", { name: "Test Mac notification", exact: true })
+      .getByRole("button", { name: "test notification", exact: true })
       .click();
     await expect(
-      page.getByText(/Mac notifications are denied/).first(),
+      page.getByText(/notifications are blocked/).first(),
     ).toBeVisible();
     expect(
       await desktop.evaluate(
@@ -127,7 +120,7 @@ test("Mac notification permission is requested on save/test, persisted, and rech
     ).toBe(1);
     await page
       .getByRole("button", {
-        name: "Open macOS Notification Settings",
+        name: "open notification settings",
         exact: true,
       })
       .click();
@@ -143,7 +136,7 @@ test("Mac notification permission is requested on save/test, persisted, and rech
       (globalThis as any).__notificationFixture.status = "not-determined";
     });
     await page
-      .getByRole("button", { name: "Test Mac notification", exact: true })
+      .getByRole("button", { name: "test notification", exact: true })
       .click();
     await expect
       .poll(() =>
@@ -156,15 +149,13 @@ test("Mac notification permission is requested on save/test, persisted, and rech
     await desktop.evaluate(() => {
       (globalThis as any).__notificationFixture.status = "not-determined";
     });
+    await page.getByLabel("notify me about new matches").uncheck();
     await page
-      .getByLabel("Notify me about newly detected matching roles")
-      .uncheck();
-    await page
-      .getByRole("button", { name: "Save discovery preferences", exact: true })
+      .getByRole("button", { name: "save filters", exact: true })
       .click();
     await expect(
       page.getByText(
-        "Discovery preferences saved. Alerts use these filters; existing jobs remain available.",
+        "saved. alerts use these filters now; jobs already found are still here.",
         { exact: true },
       ),
     ).toBeVisible();
