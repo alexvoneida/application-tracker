@@ -1060,3 +1060,27 @@ test("merging keeps the more advanced stage and the latest status time", async (
   tracker.merge(rejected.id, applied.id);
   assert.equal(tracker.app(applied.id).stage, "Interviewing");
 });
+test("resumed enrichment reuses a pasted description instead of asking for a URL", async (t) => {
+  const { tracker, store } = fixture(t);
+  const app = tracker.create({ company: "Resume fixture", title: "Engineer" });
+  store.put("snapshots", {
+    id: "fixture:pasted",
+    applicationId: app.id,
+    text: "Pasted description for the resume fixture role.",
+    url: "",
+    capturedAt: new Date().toISOString(),
+    fields: {},
+    sourceKind: "pasted",
+  });
+  store.put("applications", { ...tracker.app(app.id), enrichment: "pending" });
+  tracker.resumeEnrichment();
+  await tracker.idle();
+  // Without the pasted text this fails with "Add a job URL…".
+  const resumed = tracker.app(app.id);
+  assert.equal(resumed.enrichmentError, "");
+  assert.notEqual(resumed.enrichment, "failed");
+  assert.equal(
+    store.all("snapshots").filter((s) => s.applicationId === app.id).length,
+    1,
+  );
+});

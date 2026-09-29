@@ -91,9 +91,7 @@ export async function startServer(options: ServerOptions) {
       }
     }, 10000);
     void tracker.scanFile();
-    for (const application of tracker.apps())
-      if (application.enrichment === "pending")
-        tracker.enqueueEnrichment(application.id);
+    tracker.resumeEnrichment();
     let stopping: Promise<void> | undefined;
     return {
       origin,

@@ -349,6 +349,22 @@ export class Tracker {
     )
       await new Promise((r) => setTimeout(r, 20));
   }
+  // After a restart, pending enrichments resume from the latest pasted
+  // description if there is one; otherwise they refetch the job URL.
+  resumeEnrichment() {
+    const snapshots = this.store.all("snapshots");
+    for (const application of this.apps()) {
+      if (application.enrichment !== "pending") continue;
+      const latest = snapshots
+        .filter((s) => s.applicationId === application.id)
+        .sort((a, b) => a.capturedAt.localeCompare(b.capturedAt))
+        .at(-1);
+      this.enqueueEnrichment(
+        application.id,
+        latest?.sourceKind === "pasted" ? latest.text : undefined,
+      );
+    }
+  }
   stop() {
     this.stopped = true;
     this.queue.length = 0;
