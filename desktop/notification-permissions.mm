@@ -1,6 +1,7 @@
 #import <Foundation/Foundation.h>
 #import <UserNotifications/UserNotifications.h>
 #include <node_api.h>
+#include <atomic>
 #include <memory>
 #include <string>
 
@@ -10,7 +11,7 @@ struct Result {
   std::string status;
   bool alerts = false;
   bool sounds = false;
-  bool didRequest = false;
+  std::atomic<bool> didRequest{false};
   bool failed = false;
 };
 struct Work {
@@ -57,7 +58,12 @@ static void Execute(napi_env env, void *data) {
         } else { Finish(settings, result); }
       }];
       // Wait off the JS thread. Blocks retain result after timeout, not Work.
-      if (dispatch_semaphore_wait(result->done, dispatch_time(DISPATCH_TIME_NOW, 60 * NSEC_PER_SEC)) != 0) {
+      // Once the permission prompt is showing, the wait is on the user, so
+      // allow up to ten minutes before giving up.
+      long timedOut = dispatch_semaphore_wait(result->done, dispatch_time(DISPATCH_TIME_NOW, 60 * NSEC_PER_SEC));
+      if (timedOut && result->didRequest)
+        timedOut = dispatch_semaphore_wait(result->done, dispatch_time(DISPATCH_TIME_NOW, 540 * NSEC_PER_SEC));
+      if (timedOut) {
         work->failed = true;
       } else {
         work->failed = result->failed;

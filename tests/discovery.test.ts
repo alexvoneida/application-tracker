@@ -236,7 +236,9 @@ test("quiet baselines, alert dedup, explicit applied confirmation, closure, and 
   const discovery = new Discovery(
     tracker,
     async (url) => response(url, payload, status),
-    (jobs) => notifications.push(...jobs),
+    (jobs) => {
+      notifications.push(...jobs);
+    },
   );
   discovery.configure({ enabled: true });
   discovery.enableSource("github:simplify", false);
@@ -437,4 +439,41 @@ test("cloud worker starts without Gmail or a vault and a second instance is reje
     async (url) => response(url, { jobs: [posting("old")] }),
   );
   await restarted.stop();
+});
+
+test("desktop notification failures surface their message and a later success clears it", async (t) => {
+  const { store, tracker } = fixture(t);
+  let payload: unknown = { jobs: [posting("old")] };
+  let failure = "Allow notifications fixture.";
+  const discovery = new Discovery(
+    tracker,
+    async (url) => response(url, payload, 200),
+    async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      if (failure) throw new Error(failure);
+    },
+  );
+  discovery.configure({ enabled: true });
+  discovery.enableSource("github:simplify", false);
+  discovery.addBoard(board.url, board.name);
+  await discovery.tick();
+  payload = { jobs: [posting("old"), posting("new")] };
+  // Delivery runs off the scan loop, so wait for it rather than for tick().
+  const settled = async (expected: string) => {
+    for (let wait = 0; wait < 100; wait++) {
+      if (discovery.notificationError === expected) return;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    assert.equal(discovery.notificationError, expected);
+  };
+  due(store);
+  await discovery.tick();
+  await settled(failure);
+  const expected = failure;
+  failure = "";
+  payload = { jobs: [posting("old"), posting("new"), posting("newer")] };
+  due(store);
+  await discovery.tick();
+  assert.equal(discovery.notificationError, expected);
+  await settled("");
 });

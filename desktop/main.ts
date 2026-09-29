@@ -71,6 +71,44 @@ function showWindow() {
   window.focus();
 }
 
+const notificationPermissionMessage =
+  "Allow Mac notifications from Discover’s Save preferences or Test Mac notification button. Matches remain in Discover.";
+// Electron may garbage-collect a Notification after show(), silently dropping
+// its click and failed handlers, so each one is held until it is finished.
+const shownNotifications = new Set<Notification>();
+
+function showNotification(
+  options: Electron.NotificationConstructorOptions,
+  onClick: () => void,
+  failure: string,
+) {
+  const notification = new Notification(options);
+  const release = () => shownNotifications.delete(notification);
+  notification.on("click", () => {
+    release();
+    onClick();
+  });
+  notification.on("close", release);
+  notification.on("failed", () => {
+    release();
+    if (runtime) runtime.discovery.notificationError = failure;
+  });
+  shownNotifications.add(notification);
+  // macOS may never report "close" for alerts left in Notification Center.
+  if (shownNotifications.size > 50)
+    shownNotifications.delete(shownNotifications.values().next().value!);
+  notification.show();
+}
+
+function clearNotificationError(onlyPermission: boolean) {
+  if (!runtime) return;
+  if (
+    !onlyPermission ||
+    runtime.discovery.notificationError === notificationPermissionMessage
+  )
+    runtime.discovery.notificationError = "";
+}
+
 function updateTray() {
   if (!keepRunning) {
     tray?.destroy();
@@ -164,53 +202,42 @@ async function start() {
     root: app.getAppPath(),
     production: !liveDevelopment,
     vault: await desktopVault(dataDirectory),
-    onDiscover: (jobs) => {
-      void (async () => {
-        const permission = await notificationPermission?.check();
-        if (quitting) return;
-        if (!permission || !canNotify(permission)) {
-          if (runtime)
-            runtime.discovery.notificationError =
-              "Allow Mac notifications from Discover’s Save preferences or Test Mac notification button. Matches remain in Discover.";
-          return;
-        }
-        if (!Notification.isSupported())
-          throw new Error("Notifications unavailable.");
-        // Limit bursts; every match remains visible in Discover.
-        for (const job of jobs.slice(0, 3)) {
-          const notification = new Notification({
+    onDiscover: async (jobs) => {
+      const permission = await notificationPermission?.check();
+      if (quitting) return;
+      if (!permission || !canNotify(permission))
+        throw new Error(notificationPermissionMessage);
+      if (!Notification.isSupported())
+        throw new Error(
+          "Could not show Mac notifications. Check notification permission in Discover.",
+        );
+      // Limit bursts; every match remains visible in Discover.
+      for (const job of jobs.slice(0, 3))
+        showNotification(
+          {
             title: `${job.company} is hiring`,
             body: `${job.title}\n${job.location || "Location not listed"}`,
             silent: false,
-          });
-          notification.on("click", () => {
+          },
+          () => {
             showWindow();
             void openExternal(job.url);
-          });
-          notification.on("failed", () => {
-            if (runtime)
-              runtime.discovery.notificationError =
-                "macOS could not display an alert. Check System Settings → Notifications → Fieldwork.";
-          });
-          notification.show();
-        }
-        if (jobs.length > 3) {
-          const summary = new Notification({
+          },
+          "macOS could not display an alert. Check System Settings → Notifications → Fieldwork.",
+        );
+      if (jobs.length > 3)
+        showNotification(
+          {
             title: "More new SWE matches",
             body: `${jobs.length - 3} additional roles. Open Discover to see all matches.`,
-          });
-          summary.on("click", () => {
+          },
+          () => {
             showWindow();
             if (window && runtime)
               void window.loadURL(`${runtime.origin}/?view=discover`);
-          });
-          summary.show();
-        }
-      })().catch(() => {
-        if (runtime)
-          runtime.discovery.notificationError =
-            "Could not show Mac notifications. Check notification permission in Discover.";
-      });
+          },
+          "macOS could not display an alert. Check System Settings → Notifications → Fieldwork.",
+        );
     },
     onOAuthComplete: (connected) => {
       updateTray();
@@ -298,9 +325,11 @@ async function start() {
     trust(event);
     return preferences();
   });
-  ipcMain.handle("desktop:notification-permission", (event) => {
+  ipcMain.handle("desktop:notification-permission", async (event) => {
     trust(event);
-    return notificationPermission!.check();
+    const permission = await notificationPermission!.check();
+    if (canNotify(permission)) clearNotificationError(true);
+    return permission;
   });
   ipcMain.handle("desktop:request-notification-permission", (event) => {
     trust(event);
@@ -319,16 +348,15 @@ async function start() {
     if (!canNotify(permission) || quitting) return permission;
     if (!Notification.isSupported())
       throw new Error("Notifications are unavailable on this system.");
-    const notification = new Notification({
-      title: "Fieldwork alerts are ready",
-      body: "New matching software engineering roles will appear here while Fieldwork is running.",
-    });
-    notification.on("failed", () => {
-      if (runtime)
-        runtime.discovery.notificationError =
-          "The test notification failed. Check macOS notification settings and the app’s code signing.";
-    });
-    notification.show();
+    clearNotificationError(false);
+    showNotification(
+      {
+        title: "Fieldwork alerts are ready",
+        body: "New matching software engineering roles will appear here while Fieldwork is running.",
+      },
+      showWindow,
+      "The test notification failed. Check macOS notification settings and the app’s code signing.",
+    );
     return permission;
   });
   ipcMain.handle("desktop:keep-running", (event, enabled: unknown) => {

@@ -76,18 +76,25 @@ export function matchDiscovery(
   }
   return reasons;
 }
-export type DiscoveryNotify = (jobs: DiscoveredJob[]) => void;
+// Rejecting with an Error shows its message in Discover.
+export type DiscoveryNotify = (jobs: DiscoveredJob[]) => void | Promise<void>;
+// Runs inside the checkpoint transaction, so it must be synchronous.
+export type DiscoveryOutbox = (jobs: DiscoveredJob[]) => void;
 
 export class Discovery {
   private active?: Promise<void>;
   private controller?: AbortController;
   private stopped = false;
   notificationError = "";
+  // Alerts are delivered one batch at a time, off the scan loop, so a slow OS
+  // permission check never delays other sources or shutdown, and the error
+  // shown always reflects the latest batch.
+  private delivery = Promise.resolve();
   constructor(
     private tracker: Pick<Tracker, "store" | "apps" | "create">,
     private request = publicRequest,
     private notify?: DiscoveryNotify,
-    private persistAlerts?: DiscoveryNotify,
+    private persistAlerts?: DiscoveryOutbox,
   ) {
     // Discovery is a rebuildable cache, kept outside application backup/merge tables.
     tracker.store.db
@@ -302,6 +309,20 @@ export class Discovery {
     };
     await Promise.all([worker(), worker()]);
   }
+  private deliver(notify: DiscoveryNotify, alerts: DiscoveredJob[]) {
+    this.delivery = this.delivery
+      .then(() => notify(alerts))
+      .then(
+        () => {
+          this.notificationError = "";
+        },
+        (error) => {
+          this.notificationError =
+            (error instanceof Error && error.message) ||
+            "Desktop alert could not be shown. Check macOS notification settings; matches remain in Discover.";
+        },
+      );
+  }
   private async poll(source: DiscoverySource, signal: AbortSignal) {
     const started = new Date().toISOString();
     try {
@@ -412,15 +433,7 @@ export class Discovery {
         // A cloud outbox is written in the same transaction as the checkpoint.
         if (alerts.length) this.persistAlerts?.(alerts);
       });
-      if (alerts.length && this.notify) {
-        try {
-          this.notify(alerts);
-          this.notificationError = "";
-        } catch {
-          this.notificationError =
-            "Desktop alert could not be shown. Check macOS notification settings; matches remain in Discover.";
-        }
-      }
+      if (alerts.length && this.notify) this.deliver(this.notify, alerts);
     } catch (error) {
       if (signal.aborted) return;
       const current = this.sources().find((s) => s.id === source.id)!;
