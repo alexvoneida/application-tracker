@@ -530,3 +530,24 @@ test("discovery filters, cloud export, and explicit applied confirmation", async
     await page.evaluate(() => document.documentElement.scrollWidth),
   ).toBeLessThanOrEqual(390);
 });
+
+test("dragging a text selection out of a dialog keeps it open", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Add application", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  const company = dialog.getByRole("textbox", { name: "Company", exact: true });
+  await company.fill("Drag selection fixture");
+  const box = (await company.boundingBox())!;
+  await page.mouse.move(box.x + 5, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(3, 3, { steps: 5 });
+  await page.mouse.up();
+  await expect(dialog).toBeVisible();
+  await expect(company).toHaveValue("Drag selection fixture");
+  await page.mouse.click(3, 3);
+  await expect(dialog).toBeHidden();
+});

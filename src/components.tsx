@@ -6,6 +6,7 @@ import {
   isValidElement,
   type ReactNode,
   type HTMLAttributes,
+  type MouseEvent,
 } from "react";
 import { X, LoaderCircle } from "lucide-react";
 import type { Stage } from "../shared/model";
@@ -30,7 +31,20 @@ export function Modal({
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const pressedOnBackdrop = useRef(false);
   const titleId = useId();
+  // A drag that starts inside the dialog and ends on the backdrop also fires a
+  // click on the <dialog>, so both the press and the release must be outside.
+  const onBackdrop = (e: MouseEvent) => {
+    const box = ref.current!.getBoundingClientRect();
+    return (
+      e.target === ref.current &&
+      (e.clientX < box.left ||
+        e.clientX > box.right ||
+        e.clientY < box.top ||
+        e.clientY > box.bottom)
+    );
+  };
   useEffect(() => {
     const dialog = ref.current!;
     const previous = document.activeElement as HTMLElement;
@@ -50,8 +64,12 @@ export function Modal({
         e.preventDefault();
         close();
       }}
+      onMouseDown={(e) => {
+        pressedOnBackdrop.current = onBackdrop(e);
+      }}
       onClick={(e) => {
-        if (e.target === ref.current) close();
+        if (pressedOnBackdrop.current && onBackdrop(e)) close();
+        pressedOnBackdrop.current = false;
       }}
     >
       <div className="modal-heading">
