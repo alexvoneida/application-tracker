@@ -505,3 +505,30 @@ test("a direct board listing keeps experience evidence learned from the curated 
   const upgraded = mergeDiscoveredJob(board, curated, true);
   assert.equal(upgraded.entryEvidence, curated.entryEvidence);
 });
+test("cloud worker disables boards removed from its config", async (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "fieldwork-worker-test-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const config = {
+    version: 1,
+    config: { enabled: true },
+    githubEnabled: false,
+    boards: [{ url: board.url }],
+  };
+  const first = startCloudWorker(directory, config, credentials, async (url) =>
+    response(url, { jobs: [posting("old")] }),
+  );
+  await first.discovery.idle();
+  await first.stop();
+  const second = startCloudWorker(
+    directory,
+    { ...config, boards: [] },
+    credentials,
+    async (url) => response(url, { jobs: [] }),
+  );
+  try {
+    const removed = second.discovery.sources().find((s) => s.id === board.id);
+    assert.equal(removed?.enabled, false);
+  } finally {
+    await second.stop();
+  }
+});

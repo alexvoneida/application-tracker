@@ -51,10 +51,16 @@ export function startCloudWorker(
   );
   discovery.configure(config.config);
   discovery.enableSource("github:simplify", config.githubEnabled);
+  const configured = new Set<string>();
   for (const board of config.boards) {
     const source = discovery.addBoard(board.url, board.name);
     discovery.enableSource(source.id, board.enabled);
+    configured.add(source.id);
   }
+  // Boards dropped from the config file would otherwise keep being polled.
+  for (const source of discovery.sources())
+    if (source.kind !== "github" && !configured.has(source.id))
+      discovery.enableSource(source.id, false);
   let closed = false;
   let stopping: Promise<void> | undefined;
   let lastLog = 0;
