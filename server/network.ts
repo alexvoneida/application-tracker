@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import https from "node:https";
@@ -5,13 +6,18 @@ import http from "node:http";
 import ipaddr from "ipaddr.js";
 
 export function canonicalUrl(value: string): string {
-  const url = new URL(value);
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new UserError("that link isn't a valid url");
+  }
   if (
     !["http:", "https:"].includes(url.protocol) ||
     url.username ||
     url.password
   )
-    throw new Error("Use a public HTTP or HTTPS job URL without credentials.");
+    throw new UserError("use a normal public http(s) link");
   url.hash = "";
   for (const name of [...url.searchParams.keys()])
     if (
@@ -49,15 +55,15 @@ export async function publicRequest(
 }> {
   const url = new URL(canonicalUrl(value));
   if (options.httpsOnly && url.protocol !== "https:")
-    throw new Error("The AI endpoint must use HTTPS.");
+    throw new UserError("the ai endpoint has to be https");
   if (url.port && !["80", "443"].includes(url.port))
-    throw new Error("Only public web ports are supported.");
+    throw new UserError("only normal web ports work");
   const hostname = url.hostname.replace(/^\[|\]$/g, "");
   const addresses = isIP(hostname)
     ? [{ address: hostname, family: isIP(hostname) }]
     : await lookup(hostname, { all: true });
   if (!addresses.length || addresses.some((a) => !isPublicAddress(a.address)))
-    throw new Error("Private and local network addresses cannot be fetched.");
+    throw new UserError("can't fetch private or local network addresses");
   const chosen = addresses[0];
   options.signal?.throwIfAborted();
   // Pin the validated DNS result into this connection to prevent DNS rebinding.
@@ -72,7 +78,7 @@ export async function publicRequest(
         method: options.method || "GET",
         signal: options.signal,
         headers: {
-          "User-Agent": "Fieldwork/0.1 (personal application tracker)",
+          "User-Agent": "application-tracker/0.5 (personal)",
           ...options.headers,
         },
         lookup: ((
@@ -88,7 +94,7 @@ export async function publicRequest(
         response.on("data", (chunk: Buffer) => {
           size += chunk.length;
           if (size > (options.maxBytes ?? 2_000_000))
-            request.destroy(new Error("Response exceeds the size limit."));
+            request.destroy(new UserError("response was too big"));
           else chunks.push(chunk);
         });
         response.on("end", () =>
@@ -102,7 +108,7 @@ export async function publicRequest(
       },
     );
     const deadline = setTimeout(
-      () => request.destroy(new Error("Request timed out.")),
+      () => request.destroy(new UserError("request timed out")),
       30000,
     );
     request.on("close", () => clearTimeout(deadline));
@@ -115,8 +121,9 @@ export async function publicRequest(
     result.headers.location
   ) {
     if (options.method && options.method !== "GET")
-      throw new Error("API redirects are not accepted.");
-    if ((options.redirects ?? 0) >= 4) throw new Error("Too many redirects.");
+      throw new UserError("the ai endpoint tried to redirect, not allowed");
+    if ((options.redirects ?? 0) >= 4)
+      throw new UserError("too many redirects");
     return publicRequest(new URL(result.headers.location, url).toString(), {
       ...options,
       redirects: (options.redirects ?? 0) + 1,

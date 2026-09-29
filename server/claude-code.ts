@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import {
   execFile,
   type ChildProcess,
@@ -77,7 +78,7 @@ export async function claudeCodeExtract(
       (error, out, stderr) => {
         running.delete(child);
         if (!error) return resolve(out);
-        reject(new Error(spawnMessage(error, stderr)));
+        reject(new UserError(spawnMessage(error, stderr)));
       },
     );
     running.add(child);
@@ -90,14 +91,16 @@ export function resultText(stdout: string) {
   try {
     payload = JSON.parse(stdout.trim());
   } catch {
-    throw new Error("Claude Code returned unreadable output. Retry.");
+    throw new UserError(
+      "claude code sent back something unreadable, try again",
+    );
   }
   const final = Array.isArray(payload) ? payload[payload.length - 1] : payload;
   const record = (final ?? {}) as Record<string, unknown>;
   if (record.is_error)
-    throw new Error(claudeCodeMessage(String(record.result ?? "")));
+    throw new UserError(claudeCodeMessage(String(record.result ?? "")));
   if (typeof record.result !== "string" || !record.result)
-    throw new Error("Claude Code returned no result. Retry.");
+    throw new UserError("claude code didn't return anything, try again");
   return record.result;
 }
 
@@ -109,30 +112,30 @@ export function parseJsonObject(text: string): unknown {
   const start = candidate.indexOf("{");
   const end = candidate.lastIndexOf("}");
   if (start === -1 || end <= start)
-    throw new Error(
-      "Claude Code did not return a JSON object. Retry or correct the record manually.",
+    throw new UserError(
+      "claude code didn't return json. try again or fix it by hand",
     );
   try {
     return JSON.parse(candidate.slice(start, end + 1));
   } catch {
-    throw new Error(
-      "Claude Code returned malformed JSON. Retry or correct the record manually.",
+    throw new UserError(
+      "claude code returned broken json. try again or fix it by hand",
     );
   }
 }
 
 function claudeCodeMessage(text: string) {
   if (/usage limit|rate limit|quota/i.test(text))
-    return "Claude Code usage limit reached. Wait for your quota window to reset, or switch providers in Settings.";
+    return "hit the claude code usage limit. wait for it to reset or switch providers in settings";
   if (/auth|login|unauthorized|not logged in/i.test(text))
-    return "Claude Code is not signed in. Run `claude` in a terminal and sign in, then retry.";
-  return `Claude Code failed: ${text.slice(0, 200)}`;
+    return "claude code isn't signed in. run `claude` in a terminal to sign in, then try again";
+  return `claude code failed: ${text.slice(0, 200)}`;
 }
 
 function spawnMessage(error: ExecFileException, stderr: string) {
   if (error.code === "ENOENT")
-    return "Claude Code was not found. Install it, or set its full path in Settings.";
+    return "can't find claude code. install it or set its path in settings";
   if (error.killed)
-    return "Claude Code timed out. Retry, or choose a smaller model in Settings.";
+    return "claude code timed out. try again or pick a smaller model in settings";
   return claudeCodeMessage(stderr || error.message);
 }

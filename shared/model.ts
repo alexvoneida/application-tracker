@@ -222,5 +222,4 @@ export const stageRank: Record<Stage, number> = {
 export function localDate(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
-export const eventLabel = (type: string) =>
-  type.replaceAll("_", " ").replace(/^./, (s) => s.toUpperCase());
+export const eventLabel = (type: string) => type.replaceAll("_", " ");

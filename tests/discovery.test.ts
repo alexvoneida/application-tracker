@@ -133,7 +133,7 @@ test("GitHub HTML table respects SWE section, continuation companies, closed job
   assert.equal(jobs[1].company, "Example");
   assert.match(jobs[0].location, /Denver.*Remote/);
   assert.equal(jobs[0].publishedAt, "");
-  assert.throws(() => parseGithub("layout changed"), /Unsupported/);
+  assert.throws(() => parseGithub("layout changed"), /format changed/);
 });
 test("public board mappings exclude unlisted jobs, preserve salaries, and don't invent publication dates", () => {
   const ashby = parseBoard(board, {
@@ -188,7 +188,7 @@ test("public board mappings exclude unlisted jobs, preserve salaries, and don't 
   assert.equal(lever[0].annualSalaryMax, null);
   assert.throws(
     () => parseBoard(board, { jobs: [{ title: "Invalid" }] }),
-    /required job fields/,
+    /missing job fields/,
   );
 });
 test("filters handle entry-level evidence, explicit seniority, unknowns, and salary currencies", () => {
@@ -210,11 +210,7 @@ test("filters handle entry-level evidence, explicit seniority, unknowns, and sal
     minSalary: 100000,
     includeUnknownSalary: false,
   });
-  assert.ok(
-    matchDiscovery(job(), config).includes(
-      "Comparable annual salary is unavailable",
-    ),
-  );
+  assert.ok(matchDiscovery(job(), config).includes("no usable salary"));
   assert.deepEqual(
     matchDiscovery(
       { ...job(), annualSalaryMax: 120000, currency: "USD" },
@@ -224,12 +220,12 @@ test("filters handle entry-level evidence, explicit seniority, unknowns, and sal
   );
   assert.ok(
     matchDiscovery({ ...job(), requiredYears: 5 }, config).some((r) =>
-      r.includes("Experience"),
+      r.includes("experience"),
     ),
   );
   assert.ok(
     matchDiscovery({ ...job(), location: "Austin" }, config).some((r) =>
-      r.includes("Location"),
+      r.includes("location"),
     ),
   );
 });
@@ -339,7 +335,7 @@ test("Lever pagination combines pages and preserves failure rather than partial 
       },
       new AbortController().signal,
     ),
-    /HTTP 500/,
+    /http 500/,
   );
 });
 test("pausing discovery aborts an in-flight snapshot without writing or notifying", async (t) => {
@@ -432,7 +428,7 @@ test("cloud worker starts without Gmail or a vault and a second instance is reje
     assert.equal(worker.outbox.items().length, 0);
     assert.throws(
       () => startCloudWorker(directory, config, credentials),
-      /Another worker/,
+      /another worker/,
     );
   } finally {
     await worker.stop();

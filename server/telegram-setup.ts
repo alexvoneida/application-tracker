@@ -20,7 +20,7 @@ try {
         test
           ? {
               chat_id: chatId,
-              text: "Fieldwork test: phone alerts are connected. New matching jobs will include an application button.",
+              text: "test from application tracker: phone alerts work. new matches will have an apply button.",
               allow_paid_broadcast: false,
             }
           : { limit: 100, allowed_updates: ["message"] },
@@ -29,7 +29,7 @@ try {
   );
   const data = JSON.parse(response.text);
   if (response.status !== 200 || data.ok !== true)
-    throw new Error("Telegram rejected request.");
+    throw new Error("telegram rejected the request");
   if (test)
     console.log(
       "Test message accepted by Telegram. Check your phone and enable notifications for this chat.",
@@ -45,7 +45,7 @@ try {
     console.log(
       ids.length
         ? `Private chat IDs from recent messages: ${ids.join(", ")}. Choose your own chat ID for TELEGRAM_CHAT_ID.`
-        : "No private messages found. Open your bot in Telegram, send /start, and rerun this command. Use a dedicated bot without a webhook.",
+        : "no messages found. open the bot in telegram, send /start, and run this again (use a bot with no webhook).",
     );
   }
 } catch {

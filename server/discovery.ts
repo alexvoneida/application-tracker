@@ -1,3 +1,4 @@
+import { UserError } from "./errors";
 import type { Tracker } from "./tracker";
 import { localDate } from "../shared/model";
 import {
@@ -34,46 +35,45 @@ export function matchDiscovery(
     !isSoftwareRole(job.title) ||
     /intern|contract|part.?time|temporary/i.test(job.employmentType)
   )
-    reasons.push("Not a full-time entry-level SWE role");
+    reasons.push("not a full-time entry-level swe job");
   if (job.requiredYears !== null && job.requiredYears > config.maxExperience)
-    reasons.push("Experience requirement exceeds your limit");
+    reasons.push("wants more experience than my max");
   if (
     job.requiredYears === null &&
     job.entryEvidence === unknownExperience &&
     !config.includeUnknownExperience
   )
-    reasons.push("Experience requirement unknown");
+    reasons.push("experience unclear");
   if (
     config.workArrangement !== "Any" &&
     job.workArrangement !== config.workArrangement
   )
-    reasons.push("Work arrangement does not match");
+    reasons.push("wrong remote/hybrid/on-site");
   if (
     terms(config.locations).length &&
     !terms(config.locations).some((term) =>
       job.location.toLowerCase().includes(term),
     )
   )
-    reasons.push("Location does not match (or is unknown)");
+    reasons.push("location doesn't match (or isn't listed)");
   if (
     terms(config.keywords).length &&
     !terms(config.keywords).some((term) => haystack.includes(term))
   )
-    reasons.push("No preferred keyword found");
+    reasons.push("none of my keywords");
   if (terms(config.excludeKeywords).some((term) => haystack.includes(term)))
-    reasons.push("Excluded keyword found");
+    reasons.push("has a skipped keyword");
   if (
     terms(config.excludeCompanies).some((term) =>
       job.company.toLowerCase().includes(term),
     )
   )
-    reasons.push("Excluded company");
+    reasons.push("skipped company");
   if (config.minSalary > 0) {
     if (job.annualSalaryMax === null || job.currency !== config.currency) {
-      if (!config.includeUnknownSalary)
-        reasons.push("Comparable annual salary is unavailable");
+      if (!config.includeUnknownSalary) reasons.push("no usable salary");
     } else if (job.annualSalaryMax < config.minSalary)
-      reasons.push("Posted salary range is below your minimum");
+      reasons.push("pay's below my min");
   }
   return reasons;
 }
@@ -180,28 +180,26 @@ export class Discovery {
     const row = this.tracker.store.db
       .prepare("SELECT data FROM discovery_jobs WHERE id=?")
       .get(id);
-    if (!row) throw new Error("Job not found.");
+    if (!row) throw new UserError("job not found");
     return JSON.parse(row.data as string) as DiscoveredJob;
   }
   addBoard(url: string, name = "") {
     const source = boardFromUrl(url, name);
     if (!source)
-      throw new Error(
-        "Choose a Greenhouse, Lever, or Ashby HTTPS job-board link.",
+      throw new UserError(
+        "needs a greenhouse, lever, or ashby board link (https)",
       );
     const existing = this.sources();
     if (existing.some((s) => s.id === source.id))
       return existing.find((s) => s.id === source.id)!;
     if (existing.length >= 501)
-      throw new Error(
-        "Too many boards. This local instance supports 500 direct boards.",
-      );
+      throw new UserError("too many boards (500 max)");
     this.putSource(source);
     return source;
   }
   enableSource(id: string, enabled: boolean) {
     const source = this.sources().find((s) => s.id === id);
-    if (!source) throw new Error("Job source not found.");
+    if (!source) throw new UserError("source not found");
     // A disabled source remains in the DB to retain its baseline/dedup history.
     this.putSource({ ...source, enabled });
   }
@@ -470,11 +468,9 @@ export class Discovery {
         failures,
         nextCheck: new Date(Date.now() + delay).toISOString(),
         error:
-          error instanceof FeedError ||
-          (error instanceof Error &&
-            /^(Unsupported|Source pagination)/.test(error.message))
+          error instanceof UserError
             ? error.message
-            : "Could not read this source. Previous listings preserved; retry scheduled.",
+            : "couldn't read this source, kept the old listings and will retry",
       });
     }
   }

@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import * as cheerio from "cheerio";
 import { createHash } from "node:crypto";
 import { z } from "zod";
@@ -145,7 +146,7 @@ export function classifyRules(subject: string, body: string): EmailExtraction {
     occurredAt: "",
     dueAt: "",
     timeZone: "",
-    explanation: "Review this hiring message.",
+    explanation: "check this one",
     multipleRoles: false,
   };
   base.multipleRoles =
@@ -166,7 +167,7 @@ export function classifyRules(subject: string, body: string): EmailExtraction {
     return {
       ...base,
       relevant: false,
-      explanation: "Job alert or recommendation.",
+      explanation: "job alert / recommendation",
     };
   const rules: [RegExp, EmailExtraction["eventType"]][] = [
     [
@@ -217,8 +218,7 @@ export function classifyRules(subject: string, body: string): EmailExtraction {
   if (match) {
     base.eventType = match[1];
     base.confidence = 0.98;
-    base.explanation =
-      "Matched an explicit hiring phrase; verify the role association.";
+    base.explanation = "matched an obvious phrase, double check which job";
   } else if (
     !/applicat|interview|assessment|recruit|offer|position|hiring/i.test(text)
   )
@@ -258,8 +258,8 @@ export class Extractor {
     const claudeCode = settings.aiProvider === "claude-code";
     const key = process.env.OPENAI_API_KEY || this.vault.get("aiKey");
     if (!settings.aiEnabled || (!claudeCode && !key))
-      throw new Error(
-        "AI extraction is not configured. Add your API key in Settings or edit the record manually.",
+      throw new UserError(
+        "ai extraction isn't set up. add a key in settings or fill it in by hand",
       );
     const fingerprint = createHash("sha256")
       .update(
@@ -319,8 +319,8 @@ export class Extractor {
       },
     );
     if (result.status >= 400)
-      throw new Error(
-        `AI provider returned HTTP ${result.status}. Check your key, model, quota, and endpoint in Settings.`,
+      throw new UserError(
+        `ai provider returned http ${result.status}. check the key, model, quota, and url in settings`,
       );
     let parsed: T;
     try {
@@ -332,8 +332,8 @@ export class Extractor {
         tokens: response.usage?.total_tokens ?? null,
       });
     } catch {
-      throw new Error(
-        "AI returned an invalid extraction. Retry or correct the record manually.",
+      throw new UserError(
+        "ai returned something unusable. try again or fix it by hand",
       );
     }
     this.store.set(`ai:${fingerprint}`, parsed);

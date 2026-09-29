@@ -22,7 +22,7 @@ export async function startServer(options: ServerOptions) {
   const production = options.production ?? true;
   const index = join(options.root, "dist", "index.html");
   if (production && !existsSync(index))
-    throw new Error("Run npm run build before starting Fieldwork.");
+    throw new Error("run npm run build first");
   const store = new Store(options.directory);
   const vault = options.vault ?? new Vault(options.directory);
   const start = new Date();

@@ -7,7 +7,7 @@ try {
     process.env.DISCOVERY_CONFIG_FILE || "fieldwork-worker.json",
   );
   if (statSync(configPath).size > 2_000_000)
-    throw new Error("Configuration too large.");
+    throw new Error("config file is too big");
   const worker = startCloudWorker(
     resolve(process.env.WORKER_DATA_DIR || ".worker-data"),
     JSON.parse(readFileSync(configPath, "utf8")),
@@ -21,7 +21,7 @@ try {
       void worker.stop().then(() => process.exit(0));
     });
   console.log(
-    "Fieldwork discovery worker started. No Gmail or application-history access. First checks establish quiet baselines.",
+    "application tracker worker started. no gmail or application access. first checks just record what's already posted.",
   );
 } catch {
   console.error(

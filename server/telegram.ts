@@ -61,12 +61,12 @@ export class TelegramOutbox {
     );
     for (const job of jobs) {
       const text = [
-        `New SWE match: ${job.company.slice(0, 200)}`,
+        `new match: ${job.company.slice(0, 200)}`,
         job.title.slice(0, 300),
-        job.location.slice(0, 300) || "Location not listed",
-        job.salary.slice(0, 200) || "Salary not listed",
-        `Detected ${job.firstSeenAt}`,
-        "Open the application below. Submission is up to you.",
+        job.location.slice(0, 300) || "location not listed",
+        job.salary.slice(0, 200) || "no salary listed",
+        `found ${job.firstSeenAt}`,
+        "apply link below",
       ].join("\n");
       const item: Delivery = {
         id: job.id,
@@ -98,7 +98,7 @@ export class TelegramOutbox {
       this.put({
         ...item,
         state: "expired",
-        error: "No longer eligible or more than 24 hours old.",
+        error: "too old or doesn't match anymore",
       });
       return;
     }
@@ -127,7 +127,7 @@ export class TelegramOutbox {
             allow_paid_broadcast: false,
             link_preview_options: { is_disabled: true },
             reply_markup: {
-              inline_keyboard: [[{ text: "Open application", url: item.url }]],
+              inline_keyboard: [[{ text: "apply", url: item.url }]],
             },
           }),
         },
@@ -155,7 +155,7 @@ export class TelegramOutbox {
           ...sending,
           state: "pending",
           next,
-          error: "Telegram rate limit; retry scheduled.",
+          error: "telegram rate limited, will retry",
         });
         this.store.set("telegramNextSend", next);
       } else {
@@ -164,8 +164,8 @@ export class TelegramOutbox {
           ...sending,
           state: uncertain ? "uncertain" : "failed",
           error: uncertain
-            ? "Telegram server error; delivery uncertain. Not automatically resent."
-            : "Telegram rejected delivery. Check bot credentials, private chat ID, and whether the bot is blocked.",
+            ? "telegram server error, might not have sent (won't resend on its own)"
+            : "telegram rejected it. check the bot token, chat id, and that the bot isn't blocked",
         });
       }
     } catch {

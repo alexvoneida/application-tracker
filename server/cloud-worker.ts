@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import { randomUUID } from "node:crypto";
 import { workerConfigSchema } from "../shared/discovery.ts";
 import { Discovery, matchDiscovery } from "./discovery.ts";
@@ -19,15 +20,15 @@ export function startCloudWorker(
   const config = workerConfigSchema.parse(input);
   telegramCredentialsSchema.parse(credentials);
   if (config.boards.some((b) => !boardFromUrl(b.url)))
-    throw new Error("Invalid job board in worker configuration.");
+    throw new UserError("bad job board in the worker config");
   const store = new Store(directory);
   const owner = randomUUID();
   try {
     store.transaction(() => {
       const lease = store.setting("workerLease", { owner: "", until: 0 });
       if (lease.until > Date.now())
-        throw new Error(
-          "Another worker owns this data directory. Stop it or wait two minutes after an unclean shutdown.",
+        throw new UserError(
+          "another worker is using this data folder. stop it, or wait two minutes if it crashed",
         );
       store.set("workerLease", { owner, until: Date.now() + 120000 });
     });
@@ -42,7 +43,9 @@ export function startCloudWorker(
       store,
       apps: () => [],
       create: () => {
-        throw new Error("Applications are recorded in the desktop app only.");
+        throw new UserError(
+          "applications only get recorded in the desktop app",
+        );
       },
     },
     request,

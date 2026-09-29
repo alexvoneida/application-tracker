@@ -366,5 +366,11 @@ test("creating an application from an already resolved review email adds nothing
     });
   const [first, second] = await Promise.all([create(), create()]);
   assert.equal([first, second].filter((response) => response.ok).length, 1);
+  // A UserError's own wording reaches the page instead of the generic message.
+  const rejected = [first, second].find((response) => !response.ok)!;
+  assert.equal(
+    ((await rejected.json()) as any).error,
+    "that email's already sorted (or not found)",
+  );
   assert.equal(tracker.apps().length, 1);
 });

@@ -6,7 +6,7 @@ if (existsSync(".env")) process.loadEnvFile(".env");
 process.umask(0o077);
 const port = Number(process.env.PORT || 3210);
 if (!Number.isInteger(port) || port < 1024 || port > 65535)
-  throw new Error("PORT must be between 1024 and 65535.");
+  throw new Error("PORT has to be between 1024 and 65535");
 const directory = resolve(process.env.TRACKER_DATA_DIR || ".data");
 const runtime = await startServer({
   directory,
@@ -15,7 +15,7 @@ const runtime = await startServer({
   production: process.argv.includes("--production"),
 });
 console.log(
-  `Fieldwork is ready at ${runtime.origin}\nLocal data: ${directory}`,
+  `application tracker is running at ${runtime.origin}\ndata: ${directory}`,
 );
 let exiting = false;
 async function shutdown() {

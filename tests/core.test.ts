@@ -43,6 +43,7 @@ import {
   type Settings,
 } from "../shared/model.ts";
 import { csvExport } from "../server/api.ts";
+import { UserError } from "../server/errors.ts";
 
 const defaults: Settings = {
   linksFile: "",
@@ -143,8 +144,8 @@ test("job requests reject private, mapped, and reserved addresses", async () => 
   ])
     assert.equal(isPublicAddress(ip), false, ip);
   assert.equal(isPublicAddress("8.8.8.8"), true);
-  await assert.rejects(publicRequest("http://127.0.0.1/"), /Private/);
-  await assert.rejects(publicRequest("http://[::1]/"), /Private/);
+  await assert.rejects(publicRequest("http://127.0.0.1/"), /private/);
+  await assert.rejects(publicRequest("http://[::1]/"), /private/);
 });
 test("text parser preserves dates and reports bad lines without losing good lines", () => {
   const parsed = parseFileEntries(
@@ -475,7 +476,7 @@ test("re-running the candidate search dismisses review messages it no longer ret
   const dropped = store.get("sources", "test@example.com:drop")!;
   assert.equal(dropped.state, "dismissed");
   assert.equal(dropped.excerpt, "");
-  assert.match(dropped.reason, /no longer matches/i);
+  assert.match(dropped.reason, /doesn't match/i);
   assert.equal(store.get("sources", "test@example.com:keep")?.state, "review");
   assert.equal(
     store.get("sources", "test@example.com:linked")?.state,
@@ -609,7 +610,7 @@ test("rescheduling targets a specific interview when multiple are pending", asyn
         app.id,
         email({ eventType: "interview_rescheduled" }),
       ),
-    /Select/,
+    /which interview/,
   );
   const first = tracker.detail(app.id).actions[0];
   tracker.attach(
@@ -711,7 +712,7 @@ test("failed Gmail message fetch preserves checkpoint for retry", async (t) => {
   };
   await gmail.sync();
   assert.equal(tracker.sync.lastSuccess, "");
-  assert.match(tracker.sync.error, /checkpoint/);
+  assert.match(tracker.sync.error, /sync again/);
 });
 test("a narrowed search prunes review only after the scan completes", async (t) => {
   const { tracker, vault, store } = fixture(t);
@@ -766,9 +767,9 @@ test("Claude Code JSON is recovered from fences and preamble, and junk is reject
   );
   assert.throws(
     () => parseJsonObject("I cannot help with that."),
-    /JSON object/,
+    /didn't return json/,
   );
-  assert.throws(() => parseJsonObject("{ not json }"), /malformed/);
+  assert.throws(() => parseJsonObject("{ not json }"), /broken json/);
   // Claude Code 2.x emits an array of events under --output-format json.
   assert.deepEqual(
     resultText(
@@ -935,7 +936,7 @@ test("AI invalid output and provider failures remain recoverable without leaking
   );
   await assert.rejects(
     bad.email("Your application", "Thank you for applying", "2026-01-01"),
-    /invalid extraction/,
+    /unusable/,
   );
   const quota = new Extractor(
     store,
@@ -952,7 +953,7 @@ test("AI invalid output and provider failures remain recoverable without leaking
     quota.job("job"),
     (e) =>
       e instanceof Error &&
-      /HTTP 429/.test(e.message) &&
+      /http 429/.test(e.message) &&
       !e.message.includes("secret response"),
   );
 });
@@ -1083,4 +1084,8 @@ test("resumed enrichment reuses a pasted description instead of asking for a URL
     store.all("snapshots").filter((s) => s.applicationId === app.id).length,
     1,
   );
+});
+test("a malformed link is rejected with a readable message", async (t) => {
+  const { tracker } = fixture(t);
+  assert.throws(() => tracker.create({ url: "not a link" }), UserError);
 });

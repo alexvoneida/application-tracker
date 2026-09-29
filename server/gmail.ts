@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import {
   OAuth2Client,
   CodeChallengeMethod,
@@ -62,8 +63,8 @@ export class Gmail {
     if (!(
       process.env.GOOGLE_CLIENT_ID || this.tracker.vault.get("googleClientId")
     ))
-      throw new Error(
-        "Save your Google Desktop OAuth client ID and secret in Settings first.",
+      throw new UserError(
+        "save the google oauth client id and secret in settings first",
       );
     this.pending.clear();
     const client = this.client();
@@ -86,8 +87,8 @@ export class Gmail {
     const pending = this.pending.get(state);
     this.pending.delete(state);
     if (!pending || pending.expires < Date.now() || !code)
-      throw new Error(
-        "Authorization expired. Return to Settings and connect again.",
+      throw new UserError(
+        "sign-in expired, go back to settings and connect again",
       );
     const client = this.client(false);
     const generation = this.generation;
@@ -100,7 +101,7 @@ export class Gmail {
         ?.split(" ")
         .includes("https://www.googleapis.com/auth/gmail.readonly")
     )
-      throw new Error("Read-only Gmail permission was not granted.");
+      throw new UserError("didn't get read-only gmail permission");
     client.setCredentials(tokens);
     const response = await fetch(
       "https://gmail.googleapis.com/gmail/v1/users/me/profile",
@@ -110,8 +111,8 @@ export class Gmail {
       },
     );
     if (!response.ok)
-      throw new Error(
-        "Could not verify this Gmail connection. Check that Gmail API is enabled.",
+      throw new UserError(
+        "couldn't verify the gmail connection. is the gmail api turned on?",
       );
     const profile = (await response.json()) as { emailAddress: string };
     if (
@@ -121,7 +122,7 @@ export class Gmail {
       this.tracker.sync.lastSuccess = "";
     }
     if (generation !== this.generation)
-      throw new Error("Gmail disconnected during authorization.");
+      throw new UserError("gmail got disconnected while signing in");
     this.tracker.vault.set("gmailTokens", JSON.stringify(tokens));
     this.tracker.store.set("gmailAccount", profile.emailAddress);
     this.tracker.sync.error = "";
@@ -159,19 +160,19 @@ export class Gmail {
       generation !== this.generation ||
       !this.tracker.vault.get("gmailTokens")
     )
-      throw new Error("Gmail disconnected.");
+      throw new UserError("gmail disconnected");
     const client = this.client();
     let accessToken: string | null | undefined;
     try {
       accessToken = (await client.getAccessToken()).token;
     } catch {
-      throw new Error(
-        "Gmail authorization expired or was revoked. Reconnect in Settings.",
+      throw new UserError(
+        "gmail sign-in expired or got revoked, reconnect in settings",
       );
     }
     for (let attempt = 0; attempt < 3; attempt++) {
       if (generation !== this.generation)
-        throw new Error("Gmail disconnected.");
+        throw new UserError("gmail disconnected");
       const response = await fetch(
         `https://gmail.googleapis.com/gmail/v1/users/me/${path}`,
         {
@@ -192,9 +193,9 @@ export class Gmail {
         continue;
       }
       if (response.status === 401)
-        throw new Error("Gmail authorization expired. Reconnect in Settings.");
-      throw new Error(
-        `Gmail returned HTTP ${response.status}. Check API access or retry later.`,
+        throw new UserError("gmail sign-in expired, reconnect in settings");
+      throw new UserError(
+        `gmail returned http ${response.status}. check api access or try later`,
       );
     }
   }
@@ -204,7 +205,7 @@ export class Gmail {
       return;
     }
     if (!this.tracker.vault.get("gmailTokens"))
-      throw new Error("Connect Gmail in Settings first.");
+      throw new UserError("connect gmail in settings first");
     const generation = this.generation;
     const state = this.tracker.sync;
     state.running = true;
@@ -238,7 +239,7 @@ export class Gmail {
         for (const ref of refs) matched?.add(`${account}:${ref.id}`);
         for (const ref of refs) {
           if (generation !== this.generation)
-            throw new Error("Gmail disconnected.");
+            throw new UserError("gmail disconnected");
           if (this.tracker.store.get("sources", `${account}:${ref.id}`)) {
             state.processed++;
             continue;
@@ -249,7 +250,7 @@ export class Gmail {
               generation,
             );
             if (generation !== this.generation)
-              throw new Error("Gmail disconnected.");
+              throw new UserError("gmail disconnected");
             const header = (name: string) =>
               message.payload?.headers?.find(
                 (h: { name: string }) => h.name.toLowerCase() === name,
@@ -277,32 +278,32 @@ export class Gmail {
         pageToken = page.nextPageToken || "";
       } while (pageToken);
       if (generation !== this.generation)
-        throw new Error("Gmail disconnected.");
+        throw new UserError("gmail disconnected");
       if (matched) this.tracker.pruneReview(account, matched);
       if (failures)
-        throw new Error(
-          `${failures} messages could not be read. Sync again to retry; the sync checkpoint was preserved.`,
+        throw new UserError(
+          `couldn't read ${failures} emails. sync again to retry (nothing was lost)`,
         );
       if (generation !== this.generation)
-        throw new Error("Gmail disconnected.");
+        throw new UserError("gmail disconnected");
       state.lastSuccess = started;
       this.tracker.store.set("lastSync", started);
       const failed = this.tracker.store
         .all("sources")
         .filter((s) => s.state === "failed").length;
       if (failed)
-        state.error = `${failed} messages need extraction retry in Review.`;
+        state.error = `${failed} emails failed extraction, retry them in emails to sort`;
     } catch (error) {
       state.error =
         error instanceof Error
           ? error.message
-          : "Gmail sync failed. Retry later.";
+          : "gmail sync failed, try again later";
     } finally {
       state.running = false;
       if (this.reconcileQueued && generation === this.generation) {
         this.reconcileQueued = false;
         this.sync(true, true).catch(() => {
-          state.error = "Gmail sync failed. Retry later.";
+          state.error = "gmail sync failed, try again later";
         });
       }
     }

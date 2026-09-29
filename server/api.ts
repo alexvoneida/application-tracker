@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import express from "express";
 import { randomBytes, createHash } from "node:crypto";
 import { isAbsolute } from "node:path";
@@ -177,7 +178,7 @@ export function createApi(
   app.disable("x-powered-by");
   app.use((req, res, next) => {
     if (![ownHost, localhost].includes(req.headers.host || ""))
-      return void res.status(403).json({ error: "Invalid local host." });
+      return void res.status(403).json({ error: "bad host" });
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "no-referrer");
     res.setHeader("X-Frame-Options", "DENY");
@@ -193,14 +194,14 @@ export function createApi(
       )
         return void res
           .status(403)
-          .json({ error: "Cross-origin access is blocked." });
+          .json({ error: "blocked a request from another site" });
       if (
         !["GET", "HEAD"].includes(req.method) &&
         (req.headers["x-tracker-token"] !== csrf || !req.is("application/json"))
       )
         return void res
           .status(403)
-          .json({ error: "Reload this page before making changes." });
+          .json({ error: "reload the page and try again" });
     }
     next();
   });
@@ -213,7 +214,7 @@ export function createApi(
       if (bursts.length >= 120)
         return void res
           .status(429)
-          .json({ error: "Too many changes. Please wait a minute." });
+          .json({ error: "too many changes at once, wait a minute" });
       bursts.push(time);
     }
     next();
@@ -347,7 +348,7 @@ export function createApi(
   });
   app.post("/api/ai/backfill", (_req, res) => {
     if (!tracker.settings().aiEnabled)
-      throw new Error("Enable AI extraction in Settings first.");
+      throw new UserError("turn on ai extraction in settings first");
     void tracker.backfillAI();
     res.status(202).json({ ok: true });
   });
@@ -367,7 +368,7 @@ export function createApi(
       res.json({
         provider: "claude-code",
         available: false,
-        error: error instanceof Error ? error.message : "Discovery failed.",
+        error: error instanceof Error ? error.message : "discovery failed",
       });
     }
   });
@@ -389,7 +390,7 @@ export function createApi(
       res
         .type("html")
         .send(
-          `<html><head><title>Fieldwork — Gmail</title></head><body><h1>${connected ? "Gmail connected" : "Gmail connection failed"}</h1><p>Return to Fieldwork. You can close this browser tab.</p></body></html>`,
+          `<html><head><title>application tracker — gmail</title></head><body><h1>${connected ? "gmail connected" : "gmail didn't connect"}</h1><p>you can close this tab and go back to the app.</p></body></html>`,
         );
       onOAuthComplete(connected);
     } else {
@@ -402,7 +403,7 @@ export function createApi(
   });
   app.post("/api/gmail/sync", (req, res) => {
     if (!tracker.vault.get("gmailTokens"))
-      throw new Error("Connect Gmail in Settings first.");
+      throw new UserError("connect gmail in settings first");
     const { full, prune } = z
       .object({
         full: z.boolean().default(false),
@@ -423,12 +424,12 @@ export function createApi(
       .parse(req.body);
     const id = String(req.params.id);
     const source = tracker.store.get("sources", id);
-    if (!source) throw new Error("Message not found.");
+    if (!source) throw new UserError("email not found");
     if (input.action === "dismiss") {
       tracker.store.put("sources", {
         ...source,
         state: "dismissed",
-        reason: "Dismissed by user.",
+        reason: "dismissed",
         excerpt: "",
       });
       res.json({ ok: true });
@@ -451,12 +452,10 @@ export function createApi(
       return;
     }
     const extraction = input.extraction || source.extraction;
-    if (!extraction.eventType) throw new Error("Choose an event type.");
+    if (!extraction.eventType) throw new UserError("pick what happened first");
     // Checked before "create" so a double-click cannot leave an empty application.
     if (!["review", "failed"].includes(source.state))
-      throw new Error(
-        "This message has already been resolved or was not found.",
-      );
+      throw new UserError("that email's already sorted (or not found)");
     let applicationId = input.applicationId;
     if (input.action === "create")
       applicationId = tracker.create({
@@ -466,7 +465,7 @@ export function createApi(
         url: extraction.url,
         stage: "Unknown",
       }).id;
-    if (!applicationId) throw new Error("Choose an application.");
+    if (!applicationId) throw new UserError("pick an application");
     res.json(tracker.attach(id, applicationId, extraction, input.actionId));
   });
   app.patch("/api/actions/:id", (req, res) => {
@@ -479,7 +478,7 @@ export function createApi(
       })
       .parse(req.body);
     const action = tracker.store.get("actions", String(req.params.id));
-    if (!action) throw new Error("Action not found.");
+    if (!action) throw new UserError("to-do not found");
     tracker.store.transaction(() => {
       tracker.store.put("actions", { ...action, ...data });
       if (data.status === "completed" && action.status !== "completed") {
@@ -497,7 +496,7 @@ export function createApi(
           timeBasis: "user",
           createdAt: time,
           sourceId: "",
-          label: `${action.kind === "assessment" ? "Assessment" : "Interview"} marked complete`,
+          label: `${action.kind} done`,
           confidence: 1,
           matchConfidence: 1,
         });
@@ -520,12 +519,12 @@ export function createApi(
   });
   app.post("/api/merge/undo", (_req, res) => {
     if (tracker.sync.running)
-      throw new Error("Wait for Gmail sync before undoing the merge.");
+      throw new UserError("wait for the gmail sync to finish first");
     const backup = tracker.store.setting<any>("mergeUndo", null);
-    if (!backup) throw new Error("There is no merge to undo.");
+    if (!backup) throw new UserError("nothing to undo");
     if (hashBackup(tracker) !== tracker.store.setting("mergeHash", ""))
-      throw new Error(
-        "Records changed after the merge. Undo is no longer safe; use the pre-merge backup to recover separately.",
+      throw new UserError(
+        "things changed since the merge so undo isn't safe anymore. use the backup from before the merge instead",
       );
     tracker.restore(backup);
     res.json({ ok: true });
@@ -540,14 +539,14 @@ export function createApi(
   app.get("/api/backup", (_req, res) => {
     res.setHeader(
       "Content-Disposition",
-      'attachment; filename="fieldwork-backup.json"',
+      'attachment; filename="application-tracker-backup.json"',
     );
     res.json(tracker.store.backup());
   });
   app.get("/api/merge/backup", (_req, res) => {
     res.setHeader(
       "Content-Disposition",
-      'attachment; filename="fieldwork-before-merge.json"',
+      'attachment; filename="application-tracker-before-merge.json"',
     );
     res.json(tracker.store.setting("mergeUndo", null));
   });
@@ -557,14 +556,14 @@ export function createApi(
       tracker.store.all("sources").length ||
       tracker.sync.running
     )
-      throw new Error(
-        "Restore requires an empty instance with Gmail sync stopped. Use a new data directory.",
+      throw new UserError(
+        "restore only works into an empty app with gmail sync stopped. use a new data folder",
       );
     const backup = backupSchema.parse(req.body);
     const ids = new Set(backup.tables.applications.map((a) => a.id));
     for (const table of Object.values(backup.tables))
       if (new Set(table.map((i) => i.id)).size !== table.length)
-        throw new Error("Backup contains duplicate IDs.");
+        throw new UserError("backup has duplicate ids");
     for (const table of [
       "events",
       "snapshots",
@@ -574,13 +573,13 @@ export function createApi(
     ] as const)
       for (const row of backup.tables[table])
         if (row.applicationId && !ids.has(row.applicationId))
-          throw new Error("Backup contains an invalid application reference.");
+          throw new UserError(
+            "backup points at an application that isn't in it",
+          );
     tracker.restore(backup);
     res.json({ ok: true });
   });
-  app.use("/api", (_req, res) =>
-    res.status(404).json({ error: "Endpoint not found." }),
-  );
+  app.use("/api", (_req, res) => res.status(404).json({ error: "not found" }));
   app.use(
     (
       error: unknown,
@@ -596,15 +595,12 @@ export function createApi(
             .join("; "),
         });
       const message =
-        error instanceof Error ? error.message : "Request failed.";
-      const safe =
-        /^(?:Add |Choose |Use |This |These |Select |Application |Message |Action |Connect |Save |Gmail |AI |Job |Private |Only |Too many |Reload |Authorization |Could not |Read-only |Restore |Backup |Wait |There |Records |The AI|Unsupported|Invalid)/.test(
-          message,
-        );
+        error instanceof Error ? error.message : "something went wrong";
+      const safe = error instanceof UserError;
       res.status(message.includes("not found") ? 404 : 400).json({
         error: safe
           ? message
-          : "The request could not be completed. Check the input and try again.",
+          : "something went wrong, check what you entered and try again",
       });
     },
   );

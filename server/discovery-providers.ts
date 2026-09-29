@@ -1,3 +1,4 @@
+import { UserError } from "./errors";
 import { createHash } from "node:crypto";
 import * as cheerio from "cheerio";
 import { z } from "zod";
@@ -155,12 +156,14 @@ export function parseGithub(markdown: string): DiscoveryCandidate[] {
     /^##\s+[^\n]*Software Engineering New Grad Roles[^\n]*\n([\s\S]*?)(?=^##\s|$(?![\s\S]))/m,
   )?.[1];
   if (!section)
-    throw new Error("Unsupported GitHub format: SWE section was not found.");
+    throw new UserError(
+      "github list format changed (couldn't find the swe section)",
+    );
   const $ = cheerio.load(section);
   if (!(
     $("th").text().includes("Company") && $("th").text().includes("Application")
   ))
-    throw new Error("Unsupported GitHub format: expected job table.");
+    throw new UserError("github list format changed (no job table)");
   const jobs: DiscoveryCandidate[] = [];
   let company = "";
   $("tbody tr").each((_i, row) => {
@@ -207,8 +210,8 @@ export function parseGithub(markdown: string): DiscoveryCandidate[] {
   });
   // A layout change must not silently close every role.
   if (!jobs.length)
-    throw new Error(
-      "Unsupported GitHub response: no open roles parsed; previous data preserved.",
+    throw new UserError(
+      "github list format changed (no open jobs found), kept the old listings",
     );
   return jobs;
 }
@@ -344,15 +347,13 @@ export function parseBoard(
       };
     }
     if (!fields.title || !fields.url)
-      throw new Error(
-        "Unsupported board response: required job fields missing.",
-      );
+      throw new UserError("board format changed (missing job fields)");
     jobs.push(candidate(fields));
   }
   return jobs;
 }
 
-export class FeedError extends Error {
+export class FeedError extends UserError {
   constructor(
     message: string,
     public retryAfter = 0,
@@ -401,7 +402,7 @@ export async function fetchSource(
         ? Number(retry) * 1000
         : Math.max(0, Date.parse(retry) - Date.now()) || 0;
       throw new FeedError(
-        `Source returned HTTP ${response.status}. Will retry with backoff.`,
+        `source returned http ${response.status}, will retry later`,
         delay,
       );
     }
@@ -421,5 +422,5 @@ export async function fetchSource(
         etag: source.kind === "lever" ? "" : etag,
       };
   }
-  throw new Error("Source pagination limit reached. Previous data preserved.");
+  throw new UserError("too many pages from this source, kept the old listings");
 }

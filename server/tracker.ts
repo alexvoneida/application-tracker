@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import { randomUUID, createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { isAbsolute } from "node:path";
@@ -93,12 +94,14 @@ export function parseFileEntries(text: string) {
       const parts = line.split("|").map((s) => s.trim());
       try {
         if (parts.length > 2)
-          throw new Error("Use one URL, optionally prefixed with YYYY-MM-DD |");
+          throw new UserError(
+            "one link per line, optionally starting with YYYY-MM-DD |",
+          );
         let date = "";
         const url = parts[parts.length - 1];
         if (parts.length === 2) {
           date = applicationInput.shape.appliedAt.parse(parts[0]);
-          if (!date) throw new Error("Date is empty.");
+          if (!date) throw new UserError("date is empty");
         }
         canonicalUrl(url);
         entries.push({ url, date, line: i + 1 });
@@ -158,7 +161,7 @@ export class Tracker {
   }
   app(id: string) {
     const app = this.store.get("applications", id);
-    if (!app) throw new Error("Application not found.");
+    if (!app) throw new UserError("application not found");
     return app;
   }
   detail(id: string) {
@@ -180,7 +183,7 @@ export class Tracker {
     const data = applicationInput.parse(input);
     const url = data.url ? canonicalUrl(data.url) : "";
     if (!data.title && !data.company && !url)
-      throw new Error("Add a job URL, company, or title.");
+      throw new UserError("add a link, company, or title");
     if (url && !data.reapply) {
       const existing = this.apps().find((a) => a.canonicalUrl === url);
       if (existing) return existing;
@@ -236,8 +239,8 @@ export class Tracker {
           sourceId: "",
           label:
             basis === "file default"
-              ? "Application captured from text file"
-              : `Added as ${data.stage}`,
+              ? "added from the links file"
+              : `added as ${data.stage.toLowerCase()}`,
           confidence: 1,
           matchConfidence: 1,
         });
@@ -287,7 +290,7 @@ export class Tracker {
         timeBasis: "user",
         createdAt: time,
         sourceId: "",
-        label: `Status corrected: ${app.stage} → ${patch.stage}`,
+        label: `changed stage: ${app.stage.toLowerCase()} → ${patch.stage.toLowerCase()}`,
         confidence: 1,
         matchConfidence: 1,
       });
@@ -382,24 +385,24 @@ export class Tracker {
       let fields = jobSchema.parse({});
       if (!suppliedText) {
         if (!original.url)
-          throw new Error("Add a job URL or paste a description first.");
+          throw new UserError("add a link or paste the description first");
         const result = await this.fetchPage(original.url);
         if (result.status >= 400)
-          throw new Error(
-            `Job page returned HTTP ${result.status}. Paste the description manually or retry later.`,
+          throw new UserError(
+            `job page returned http ${result.status}. paste the description or try later`,
           );
         if (
           !/text\/(html|plain)|application\/xhtml/i.test(
             String(result.headers["content-type"] || ""),
           )
         )
-          throw new Error(
-            "Unsupported page format. Paste the job description manually.",
+          throw new UserError(
+            "can't read that page, paste the description instead",
           );
         ({ text, fields } = parseJobPage(result.text));
         if (text.length < 80)
-          throw new Error(
-            "This page needs a browser or has too little text. Paste its job description.",
+          throw new UserError(
+            "that page needs a real browser (or has barely any text), paste the description",
           );
       }
       // Preserve source text even if paid extraction subsequently fails.
@@ -464,7 +467,7 @@ export class Tracker {
           ...current,
           enrichment: "failed",
           enrichmentError:
-            error instanceof Error ? error.message : "Extraction failed.",
+            error instanceof Error ? error.message : "extraction failed",
         });
     }
   }
@@ -474,10 +477,10 @@ export class Tracker {
     try {
       const path = this.settings().linksFile;
       if (!isAbsolute(path))
-        throw new Error("Choose an absolute path for the watched text file.");
+        throw new UserError("use the full path for the links file");
       const info = await stat(path);
       if (!info.isFile() || info.size > 2_000_000)
-        throw new Error("Choose a text file smaller than 2 MB.");
+        throw new UserError("links file has to be under 2 MB");
       const text = await readFile(path, "utf8");
       // Wait until an editor's write has settled before importing its last line.
       if (Date.now() - info.mtimeMs < 700) return;
@@ -504,8 +507,8 @@ export class Tracker {
     } catch (error) {
       this.sync.fileErrors = [
         error instanceof Error && "code" in error && error.code === "ENOENT"
-          ? "Watched file not found. Create it or choose another path in Settings."
-          : "Unable to read the watched file. Check its path, size, and permissions.",
+          ? "links file not found. make it or pick another path in settings"
+          : "can't read the links file. check the path, size, and permissions",
       ];
     } finally {
       this.scanning = false;
@@ -540,7 +543,7 @@ export class Tracker {
       ));
     } catch (e) {
       extraction = classifyRules(message.subject, excerpt);
-      error = e instanceof Error ? e.message : "Extraction failed.";
+      error = e instanceof Error ? e.message : "extraction failed";
     }
     if (canceled()) return;
     const threadApps = this.store
@@ -563,10 +566,10 @@ export class Tracker {
       reason:
         error ||
         (extraction.multipleRoles
-          ? "Message mentions multiple roles."
+          ? "mentions more than one job"
           : match.unambiguous
-            ? "Confirm the extracted event and role."
-            : "No unique role match. Choose the correct application."),
+            ? "double check what happened and which job"
+            : "couldn't tell which application, pick one"),
       applicationId: "",
       candidates: match.candidates,
       matchConfidence: match.confidence,
@@ -625,7 +628,7 @@ export class Tracker {
         this.store.put("sources", {
           ...source,
           state: "dismissed",
-          reason: "No longer matches your candidate email search.",
+          reason: "doesn't match the gmail search anymore",
           excerpt: "",
         });
         pruned++;
@@ -666,7 +669,7 @@ export class Tracker {
         } catch (error) {
           this.backfill.failed++;
           this.backfill.error =
-            error instanceof Error ? error.message : "Backfill failed.";
+            error instanceof Error ? error.message : "re-read failed";
           break;
         }
         this.backfill.processed++;
@@ -692,12 +695,10 @@ export class Tracker {
   ) {
     const source = this.store.get("sources", sourceId);
     if (!source || !["review", "failed"].includes(source.state))
-      throw new Error(
-        "This message has already been resolved or was not found.",
-      );
+      throw new UserError("that email's already sorted (or not found)");
     const data = extraction || source.extraction;
     if (!data.eventType)
-      throw new Error("Choose the event type before attaching this message.");
+      throw new UserError("pick what happened before attaching");
     const app = this.app(applicationId);
     const time = now();
     const parsedTime =
@@ -725,7 +726,7 @@ export class Tracker {
       pending.length > 1 &&
       !pending.some((a) => a.id === actionId)
     )
-      throw new Error("Select the interview action affected by this update.");
+      throw new UserError("pick which interview this is about");
     this.store.transaction(() => {
       const event: Event = {
         id: `email:${sourceId}`,
@@ -859,7 +860,7 @@ export class Tracker {
             from: "",
             extraction: classifyRules("", ""),
             candidates: [],
-            reason: "Application deleted.",
+            reason: "application deleted",
           });
       for (const item of this.store.all("imports"))
         if (item.applicationId === id)
@@ -878,7 +879,7 @@ export class Tracker {
     });
   }
   merge(from: string, into: string) {
-    if (from === into) throw new Error("Choose two different applications.");
+    if (from === into) throw new UserError("pick two different applications");
     const source = this.app(from);
     const target = this.app(into);
     this.store.transaction(() => {
