@@ -1,7 +1,7 @@
 import { packager } from "@electron/packager";
 import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { root, appName, artifactName } from "./build.mjs";
+import { root, appName } from "./build.mjs";
 
 if (process.platform !== "darwin")
   throw new Error("Build the macOS app on a Mac.");
@@ -28,7 +28,8 @@ const paths = await packager({
   electronVersion,
   overwrite: true,
   name: appName,
-  executableName: artifactName,
+  // packager derives CFBundleDisplayName (what Finder shows) from this.
+  executableName: appName,
   appBundleId: "local.fieldwork.tracker",
   appCategoryType: "public.app-category.productivity",
   icon: join(root, ".desktop-build/Fieldwork.icns"),

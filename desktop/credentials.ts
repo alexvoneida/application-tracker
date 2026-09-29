@@ -32,8 +32,7 @@ export async function desktopVault(directory: string) {
     key = randomBytes(32);
     save = true;
   }
-  if (key.length !== 32)
-    throw new Error("the credential key is invalid");
+  if (key.length !== 32) throw new Error("the credential key is invalid");
   if (save) {
     const encrypted = await safeStorage.encryptStringAsync(
       key.toString("base64"),
