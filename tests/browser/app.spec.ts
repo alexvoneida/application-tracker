@@ -669,3 +669,43 @@ test("pausing monitoring does not save unsaved search preferences", async ({
     page.getByLabel("Excluded keywords", { exact: true }),
   ).toHaveValue("unsaved draft keyword");
 });
+
+test("saving a description snapshot leaves other unsaved edits unsaved", async ({
+  page,
+}) => {
+  const initial = await (await page.request.get("/api/state")).json();
+  const application = await (
+    await page.request.post("/api/applications", {
+      headers: { "X-Tracker-Token": initial.csrf },
+      data: {
+        company: "Snapshot fixture",
+        title: "Engineer",
+        stage: "Applied",
+      },
+    })
+  ).json();
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: /Snapshot fixture/ })
+    .first()
+    .click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Location", { exact: true }).fill("Austin, TX");
+  await dialog.getByRole("tab", { name: "Saved description" }).click();
+  await dialog
+    .getByLabel("Save a new description", { exact: true })
+    .fill("Build internal tools for the platform team.");
+  const saved = page.waitForResponse(
+    (r) => r.request().method() === "PATCH" && r.url().includes(application.id),
+  );
+  await dialog.getByRole("button", { name: "Save snapshot" }).click();
+  expect((await saved).ok()).toBe(true);
+  const detail = await (
+    await page.request.get(`/api/applications/${application.id}`)
+  ).json();
+  expect(detail.application.location).toBe("");
+  await dialog.getByRole("tab", { name: "Role details" }).click();
+  await expect(dialog.getByLabel("Location", { exact: true })).toHaveValue(
+    "Austin, TX",
+  );
+});

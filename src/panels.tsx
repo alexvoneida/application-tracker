@@ -162,10 +162,9 @@ export function AddApplication({
 
 function keepUnsavedEdits(
   draft: Draft,
-  previous: Application,
+  saved: Draft,
   next: Application,
 ): Draft {
-  const saved = applicationInput.parse(previous);
   const fresh = applicationInput.parse(next);
   for (const key of Object.keys(draft) as (keyof Draft)[])
     if (draft[key] !== saved[key]) (fresh as any)[key] = draft[key];
@@ -196,14 +195,19 @@ export function ApplicationPanel({
   const [merge, setMerge] = useState(false);
   const [target, setTarget] = useState("");
   const [snapshot, setSnapshot] = useState("");
-  async function load(keepEdits = false) {
+  // `saved` holds the fields just written, which should show the server's value.
+  async function load(saved: Partial<Draft> = {}) {
     const data = await api<Detail>(`/applications/${id}`);
     const baseline = serverCopy.current;
     serverCopy.current = data.application;
     setDetail(data);
     setDraft((current) =>
-      keepEdits && current && baseline
-        ? keepUnsavedEdits(current, baseline, data.application)
+      current && baseline
+        ? keepUnsavedEdits(
+            current,
+            { ...applicationInput.parse(baseline), ...saved },
+            data.application,
+          )
         : applicationInput.parse(data.application),
     );
   }
@@ -220,7 +224,11 @@ export function ApplicationPanel({
           setDetail(next);
           setDraft((current) =>
             current
-              ? keepUnsavedEdits(current, detail.application, next.application)
+              ? keepUnsavedEdits(
+                  current,
+                  applicationInput.parse(detail.application),
+                  next.application,
+                )
               : applicationInput.parse(next.application),
           );
         })
@@ -231,14 +239,14 @@ export function ApplicationPanel({
   async function action(
     fn: () => Promise<unknown>,
     message = "",
-    keepEdits = true,
+    saved: Partial<Draft> = {},
   ) {
     setBusy(true);
     setError("");
     try {
       await fn();
       await changed();
-      await load(keepEdits);
+      await load(saved);
       setMessage(message);
     } catch (e) {
       setError((e as Error).message);
@@ -250,15 +258,27 @@ export function ApplicationPanel({
     e.preventDefault();
     if (!draft || !detail) return;
     const baseline = applicationInput.parse(detail.application);
-    const patch = Object.fromEntries(
+    // The description has its own form ("Save snapshot") on another tab.
+    const patch: Partial<Draft> = Object.fromEntries(
       Object.entries(draft).filter(
-        ([key, value]) => value !== baseline[key as keyof Draft],
+        ([key, value]) =>
+          key !== "description" && value !== baseline[key as keyof Draft],
       ),
     );
     await action(
       () => api(`/applications/${id}`, "PATCH", patch),
       "Changes saved. Your edits take priority over future extraction.",
-      false,
+      patch,
+    );
+  }
+  async function saveSnapshot(e: FormEvent) {
+    e.preventDefault();
+    if (!draft) return;
+    const patch = { description: draft.description };
+    await action(
+      () => api(`/applications/${id}`, "PATCH", patch),
+      "Description snapshot saved.",
+      patch,
     );
   }
   const set = (key: keyof Draft, value: string) =>
@@ -578,7 +598,7 @@ export function ApplicationPanel({
                   </pre>
                 </>
               )}
-              <form onSubmit={save}>
+              <form onSubmit={saveSnapshot}>
                 <Field
                   label="Save a new description"
                   hint="Earlier snapshots are preserved."
