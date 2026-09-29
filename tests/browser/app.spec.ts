@@ -709,3 +709,34 @@ test("saving a description snapshot leaves other unsaved edits unsaved", async (
     "Austin, TX",
   );
 });
+
+test("deleting the only application on the last page shows the previous page", async ({
+  page,
+}) => {
+  const initial = await (await page.request.get("/api/state")).json();
+  const created = new Map<string, string>();
+  for (let index = 0; index < 31; index++) {
+    const company = `Paging fixture ${String(index).padStart(2, "0")}`;
+    const application = await (
+      await page.request.post("/api/applications", {
+        headers: { "X-Tracker-Token": initial.csrf },
+        data: { company, title: "Engineer", stage: "Applied" },
+      })
+    ).json();
+    created.set(company, application.id);
+  }
+  await page.goto("/");
+  await page.getByLabel("Search applications").fill("Paging fixture");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page.getByText("2 / 2", { exact: true })).toBeVisible();
+  const rows = page.locator("tbody tr");
+  await expect(rows).toHaveCount(1);
+  const last = (await rows.locator("strong").textContent())!;
+  const deleted = await page.request.delete(
+    `/api/applications/${created.get(last)}`,
+    { headers: { "X-Tracker-Token": initial.csrf }, data: {} },
+  );
+  expect(deleted.ok()).toBe(true);
+  // Wait for the app's 5-second state poll to drop the deleted application.
+  await expect(rows).toHaveCount(30, { timeout: 10000 });
+});

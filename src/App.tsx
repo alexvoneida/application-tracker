@@ -162,6 +162,9 @@ export default function App() {
       sort,
     ],
   );
+  // Deletes and merges can shrink the list out from under the current page.
+  const pageCount = Math.max(1, Math.ceil(filtered.length / 30));
+  const currentPage = Math.min(page, pageCount);
   const actions = (state?.actions || [])
     .filter((a) => a.status === "pending")
     .sort((a, b) => (a.dueAt || "z").localeCompare(b.dueAt || "z"));
@@ -604,93 +607,97 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody>
-                        {filtered.slice((page - 1) * 30, page * 30).map((a) => (
-                          <tr key={a.id}>
-                            <td>
-                              <button
-                                className="role-button"
-                                onClick={() => setSelected(a.id)}
-                              >
-                                <span
-                                  className={`company-avatar tone-${(a.company || "U").charCodeAt(0) % 5}`}
+                        {filtered
+                          .slice((currentPage - 1) * 30, currentPage * 30)
+                          .map((a) => (
+                            <tr key={a.id}>
+                              <td>
+                                <button
+                                  className="role-button"
+                                  onClick={() => setSelected(a.id)}
                                 >
-                                  {(a.company || "?").slice(0, 2).toUpperCase()}
-                                </span>
-                                <span>
-                                  <strong>
-                                    {a.company || "Company pending"}
-                                  </strong>
-                                  <span>
-                                    {a.title || "Job details pending"}
-                                    {a.enrichment === "pending" && (
-                                      <span className="tiny-dot" />
-                                    )}
-                                  </span>
-                                </span>
-                              </button>
-                            </td>
-                            <td>
-                              <Badge stage={a.stage} />
-                            </td>
-                            <td>
-                              <span className="date-cell">
-                                {a.appliedAt
-                                  ? dateText(a.appliedAt).replace(
-                                      /, \d{4}$/,
-                                      "",
-                                    )
-                                  : "Unknown"}
-                                {a.appliedAt && a.dateBasis !== "user" && (
                                   <span
-                                    title={`Date basis: ${a.dateBasis}. Editable in details.`}
-                                    aria-label={`Date basis: ${a.dateBasis}`}
+                                    className={`company-avatar tone-${(a.company || "U").charCodeAt(0) % 5}`}
                                   >
-                                    {" "}
-                                    ≈
+                                    {(a.company || "?")
+                                      .slice(0, 2)
+                                      .toUpperCase()}
                                   </span>
-                                )}
-                              </span>
-                            </td>
-                            <td>
-                              <span className="cell-primary">
-                                {a.location || "Not specified"}
-                              </span>
-                              <small>
-                                {a.workArrangement !== "Unknown"
-                                  ? a.workArrangement
-                                  : "Arrangement unknown"}
-                              </small>
-                            </td>
-                            <td>
-                              <span className="salary-cell">
-                                {a.salary || "—"}
-                              </span>
-                            </td>
-                            <td>
-                              <span className="muted">
-                                {since(a.lastActivity)}
-                              </span>
-                              {state.actions.find(
-                                (t) =>
-                                  t.applicationId === a.id &&
-                                  t.status === "pending",
-                              ) && (
-                                <small className="action-hint">
-                                  Action pending
+                                  <span>
+                                    <strong>
+                                      {a.company || "Company pending"}
+                                    </strong>
+                                    <span>
+                                      {a.title || "Job details pending"}
+                                      {a.enrichment === "pending" && (
+                                        <span className="tiny-dot" />
+                                      )}
+                                    </span>
+                                  </span>
+                                </button>
+                              </td>
+                              <td>
+                                <Badge stage={a.stage} />
+                              </td>
+                              <td>
+                                <span className="date-cell">
+                                  {a.appliedAt
+                                    ? dateText(a.appliedAt).replace(
+                                        /, \d{4}$/,
+                                        "",
+                                      )
+                                    : "Unknown"}
+                                  {a.appliedAt && a.dateBasis !== "user" && (
+                                    <span
+                                      title={`Date basis: ${a.dateBasis}. Editable in details.`}
+                                      aria-label={`Date basis: ${a.dateBasis}`}
+                                    >
+                                      {" "}
+                                      ≈
+                                    </span>
+                                  )}
+                                </span>
+                              </td>
+                              <td>
+                                <span className="cell-primary">
+                                  {a.location || "Not specified"}
+                                </span>
+                                <small>
+                                  {a.workArrangement !== "Unknown"
+                                    ? a.workArrangement
+                                    : "Arrangement unknown"}
                                 </small>
-                              )}
-                            </td>
-                            <td>
-                              <button
-                                className="icon-button"
-                                aria-label={`Open ${a.company || a.title || "application"}`}
-                                onClick={() => setSelected(a.id)}
-                              >
-                                <ArrowUpRight size={17} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                              </td>
+                              <td>
+                                <span className="salary-cell">
+                                  {a.salary || "—"}
+                                </span>
+                              </td>
+                              <td>
+                                <span className="muted">
+                                  {since(a.lastActivity)}
+                                </span>
+                                {state.actions.find(
+                                  (t) =>
+                                    t.applicationId === a.id &&
+                                    t.status === "pending",
+                                ) && (
+                                  <small className="action-hint">
+                                    Action pending
+                                  </small>
+                                )}
+                              </td>
+                              <td>
+                                <button
+                                  className="icon-button"
+                                  aria-label={`Open ${a.company || a.title || "application"}`}
+                                  onClick={() => setSelected(a.id)}
+                                >
+                                  <ArrowUpRight size={17} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
                       </tbody>
                     </table>
                   </div>
@@ -706,17 +713,17 @@ export default function App() {
                   {filtered.length > 30 && (
                     <div className="pagination">
                       <button
-                        disabled={page <= 1}
-                        onClick={() => setPage(page - 1)}
+                        disabled={currentPage <= 1}
+                        onClick={() => setPage(currentPage - 1)}
                       >
                         Previous
                       </button>
                       <span>
-                        {page} / {Math.ceil(filtered.length / 30)}
+                        {currentPage} / {pageCount}
                       </span>
                       <button
-                        disabled={page * 30 >= filtered.length}
-                        onClick={() => setPage(page + 1)}
+                        disabled={currentPage >= pageCount}
+                        onClick={() => setPage(currentPage + 1)}
                       >
                         Next
                       </button>
