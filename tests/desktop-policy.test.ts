@@ -14,6 +14,7 @@ import {
   isExternalLink,
   isGoogleAuthorization,
   isLocalPage,
+  settleWithin,
 } from "../desktop/policy";
 import { Vault } from "../server/store";
 import { startServer } from "../server/runtime";
@@ -109,4 +110,12 @@ test("embedded server chooses a loopback port, stops cleanly, and persists data"
     await runtime?.stop();
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("shutdown waits for pending work but gives up after the time limit", async () => {
+  assert.equal(await settleWithin(Promise.resolve(), 1000), true);
+  assert.equal(await settleWithin(Promise.reject(new Error("x")), 1000), true);
+  const started = Date.now();
+  assert.equal(await settleWithin(new Promise(() => {}), 50), false);
+  assert.ok(Date.now() - started < 1000);
 });

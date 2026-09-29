@@ -29,3 +29,25 @@ export function isGoogleAuthorization(url: unknown): url is string {
     parsed.pathname === "/o/oauth2/v2/auth"
   );
 }
+
+// Resolves true once the work settles (either way), or false after the limit.
+export async function settleWithin(
+  work: Promise<unknown>,
+  milliseconds: number,
+): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const limit = new Promise<false>((resolve) => {
+    timer = setTimeout(() => resolve(false), milliseconds);
+  });
+  try {
+    return await Promise.race([
+      work.then(
+        () => true,
+        () => true,
+      ),
+      limit,
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}

@@ -20,7 +20,12 @@ import {
 } from "./notification-permission";
 import { startServer } from "../server/runtime";
 import { desktopVault } from "./credentials";
-import { isExternalLink, isGoogleAuthorization, isLocalPage } from "./policy";
+import {
+  isExternalLink,
+  isGoogleAuthorization,
+  isLocalPage,
+  settleWithin,
+} from "./policy";
 import type { DesktopPreferences } from "../shared/desktop";
 
 const development = !app.isPackaged;
@@ -41,6 +46,7 @@ mkdirSync(dataDirectory, { recursive: true, mode: 0o700 });
 let window: BrowserWindow | undefined;
 let tray: Tray | undefined;
 let runtime: Awaited<ReturnType<typeof startServer>> | undefined;
+const shutdownMilliseconds = 10_000;
 let quitting = false;
 let quitComplete = false;
 let keepRunning = false;
@@ -57,7 +63,8 @@ function preferences(): DesktopPreferences {
 }
 
 function showWindow() {
-  if (!window || window.isDestroyed()) return;
+  // The local server is already closing, so a re-shown window could not save.
+  if (quitting || !window || window.isDestroyed()) return;
   if (window.isMinimized()) window.restore();
   window.show();
   window.focus();
@@ -400,12 +407,20 @@ app.on("before-quit", (event) => {
     window.hide();
   }
   void (async () => {
-    try {
-      await runtime?.stop();
-    } finally {
-      quitComplete = true;
-      app.quit();
-    }
+    // A stuck request or Claude Code call must not leave an invisible process
+    // holding the single-instance lock, so stop waiting after the limit.
+    const drained = await settleWithin(
+      runtime?.stop().catch((error) => {
+        console.error("Fieldwork could not finish pending work:", error);
+      }) ?? Promise.resolve(),
+      shutdownMilliseconds,
+    );
+    if (!drained)
+      console.error(
+        `Fieldwork quit before pending work finished (waited ${shutdownMilliseconds / 1000}s).`,
+      );
+    quitComplete = true;
+    app.quit();
   })();
 });
 app.on("window-all-closed", () => {
