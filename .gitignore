@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.desktop-build/
+out/
+.data/
+.env
+.env.*
+!.env.example
+playwright-report/
+test-results/
+*.log
+.DS_Store
+applications.txt
+.worker-data/
+fieldwork-worker.json
