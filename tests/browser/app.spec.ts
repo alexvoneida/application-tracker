@@ -789,3 +789,25 @@ test("a failed application confirmation shows its error inside the dialog", asyn
     .click();
   await expect(dialog.getByText("Fixture applied failure.")).toBeVisible();
 });
+
+test("a connection error banner clears once polling recovers", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Your search, in perspective." }),
+  ).toBeVisible();
+  let failNext = true;
+  await page.route("**/api/state", (route) => {
+    if (!failNext) return route.continue();
+    failNext = false;
+    return route.fulfill({ status: 503, json: { error: "Fixture outage." } });
+  });
+  // Both waits span one 5-second state poll.
+  await expect(page.getByText("Fixture outage.")).toBeVisible({
+    timeout: 10000,
+  });
+  await expect(page.getByText("Fixture outage.")).toBeHidden({
+    timeout: 10000,
+  });
+});

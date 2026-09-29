@@ -39,6 +39,7 @@ export default function App() {
   const [state, setState] = useState<State>();
   const [view, setView] = useState<View>("applications");
   const [error, setError] = useState("");
+  const [connectionError, setConnectionError] = useState("");
   const [toast, setToast] = useState("");
   const [selected, setSelected] = useState("");
   const [adding, setAdding] = useState(false);
@@ -58,11 +59,15 @@ export default function App() {
     setState(next);
   }, []);
   useEffect(() => {
-    void refresh().catch((e) => setError(e.message));
-    const timer = setInterval(
-      () => void refresh().catch((e) => setError(e.message)),
-      5000,
-    );
+    // Poll failures get their own banner so recovery can clear it without
+    // hiding an error from something the user did.
+    const poll = () =>
+      void refresh().then(
+        () => setConnectionError(""),
+        (e) => setConnectionError(e.message),
+      );
+    poll();
+    const timer = setInterval(poll, 5000);
     return () => clearInterval(timer);
   }, [refresh]);
   useEffect(() => {
@@ -304,6 +309,11 @@ export default function App() {
           </span>
         </header>
         <div className="content">
+          {connectionError && (
+            <div className="banner error" role="alert">
+              <span>{connectionError}</span>
+            </div>
+          )}
           {error && (
             <div className="banner error" role="alert">
               <span>{error}</span>

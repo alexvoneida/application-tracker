@@ -55,6 +55,7 @@ export function DiscoverPanel({
   const [boardUrl, setBoardUrl] = useState("");
   const [boardName, setBoardName] = useState("");
   const [sourceSearch, setSourceSearch] = useState("");
+  const [connectionError, setConnectionError] = useState("");
   const [confirm, setConfirm] = useState<DiscoveredJob>();
   const [date, setDate] = useState(localDate());
   const [detail, setDetail] = useState<DiscoveredJob>();
@@ -67,12 +68,15 @@ export function DiscoverPanel({
       setPermission(await window.fieldworkDesktop.notificationPermission());
   }, []);
   useEffect(() => {
-    void refresh().catch((e) => setError(e.message));
-    const timer = setInterval(
-      () => void refresh().catch((e) => setError(e.message)),
-      5000,
-    );
-    const focus = () => void refresh().catch((e) => setError(e.message));
+    // Separate from `error` so a recovered poll clears only its own banner.
+    const poll = () =>
+      void refresh().then(
+        () => setConnectionError(""),
+        (e) => setConnectionError(e.message),
+      );
+    poll();
+    const timer = setInterval(poll, 5000);
+    const focus = poll;
     window.addEventListener("focus", focus);
     return () => {
       clearInterval(timer);
@@ -167,6 +171,7 @@ export function DiscoverPanel({
           {state.config.enabled ? "Pause monitoring" : "Start monitoring"}
         </button>
       </div>
+      {connectionError && <Notice error>{connectionError}</Notice>}
       {error && <Notice error>{error}</Notice>}
       {message && <Notice>{message}</Notice>}
       {state.notificationError && (
