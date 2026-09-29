@@ -1017,3 +1017,16 @@ test("stopping Claude Code ends a running extraction immediately", async (t) => 
   await assert.rejects(running);
   assert.ok(Date.now() - started < 5000);
 });
+
+test("idle waits for a running AI backfill so shutdown never closes the store under it", async (t) => {
+  const { tracker } = fixture(t);
+  tracker.backfill.running = true;
+  let settled = false;
+  const idle = tracker.idle().then(() => {
+    settled = true;
+  });
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  assert.equal(settled, false);
+  tracker.backfill.running = false;
+  await idle;
+});

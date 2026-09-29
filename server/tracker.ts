@@ -341,7 +341,12 @@ export class Tracker {
     this.working = false;
   }
   async idle() {
-    while (this.working || this.scanning || this.sync.running)
+    while (
+      this.working ||
+      this.scanning ||
+      this.sync.running ||
+      this.backfill.running
+    )
       await new Promise((r) => setTimeout(r, 20));
   }
   stop() {
