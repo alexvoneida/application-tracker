@@ -109,6 +109,15 @@ export function stripQuoted(text: string) {
     .trim()
     .slice(0, 18000);
 }
+const hypotheticalMarker = new RegExp(
+  [
+    String.raw`\b(?:if|should|once|when|unless)\b(?=[^.!?]{0,60}?\b(?:selected|chosen|shortlisted|(?:un)?successful|match|fit|decide|move forward|moving forward|proceed))`,
+    String.raw`\b(?:may|might|could)(?: not)? be (?:asked|invited|contacted|required|moving|proceeding)`,
+    String.raw`\b(?:candidates|applicants|those|people|anyone) (?:who|that) (?:are|is|were|have been) (?:not )?(?:selected|chosen|shortlisted|successful)`,
+    String.raw`\bonly (?:those|candidates|applicants|people)\b`,
+  ].join("|"),
+  "i",
+);
 export function classifyRules(subject: string, body: string): EmailExtraction {
   const text = `${subject}\n${stripQuoted(body)}`;
   const base: EmailExtraction = {
@@ -156,7 +165,7 @@ export function classifyRules(subject: string, body: string): EmailExtraction {
       "role_closed",
     ],
     [
-      /(?:not (?:be )?(?:moving|proceeding) forward|regret to inform|decided (?:not to|to pursue other)|not selected|unfortunately.{0,100}(?:application|candidates|position))/is,
+      /(?:not (?:be )?(?:moving|proceeding) forward|(?:won['’]?t|will not|unable to|not able to) (?:be )?(?:moving|proceeding|move|proceed) (?:forward|ahead|with your)|regret to inform|decided not to|(?:chosen|decided|going|elected) to (?:pursue|proceed with|move (?:ahead|forward) with|go with|continue with) (?:other|another)|(?:move|moving|go|going) forward with (?:other|another) (?:candidate|applicant)|(?:decided|chosen|elected) to (?:move|go|proceed) (?:forward |ahead )?with (?:other |another |different )?(?:candidates|applicants)|pursu\w* (?:other|another) (?:candidate|applicant)|not (?:be )?pursuing your (?:candidacy|application)|(?:unable|not able) to (?:offer|extend) you (?:the |a |this )?(?:position|role|offer|employment)|not selected|\bunsuccessful|(?:position|role) has (?:now )?been filled|filled the (?:position|role))/is,
       "rejected",
     ],
     [
@@ -180,7 +189,17 @@ export function classifyRules(subject: string, body: string): EmailExtraction {
       "application_confirmed",
     ],
   ];
-  const match = rules.find(([pattern]) => pattern.test(text));
+  // Confirmations describe possible next steps ("If selected, you will be asked
+  // to complete an assessment", "Candidates who are not selected will be
+  // notified"). Drop each sentence from its first hypothetical marker onward so
+  // a real decision earlier in the same sentence still counts. Lines that
+  // continue in lowercase are hard wraps, not sentence breaks.
+  const statements = text
+    .replace(/\n(?=[a-z])/g, " ")
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map((sentence) => sentence.split(hypotheticalMarker)[0])
+    .join("\n");
+  const match = rules.find(([pattern]) => pattern.test(statements));
   if (match) {
     base.eventType = match[1];
     base.confidence = 0.98;

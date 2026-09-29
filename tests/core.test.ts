@@ -321,6 +321,80 @@ test("rule classifier recognizes representative explicit hiring events", () => {
   for (const [text, type] of samples)
     assert.equal(classifyRules("", text).eventType, type, text);
 });
+test("rule classifier ignores confirmation boilerplate and hypothetical next steps", () => {
+  const confirmations = [
+    "Thanks for applying to Acme for the Software Engineer role (Job ID 12345). Unfortunately, due to the volume of applications we cannot reply to everyone.",
+    "Thank you for applying to Acme. If selected, you will be asked to complete an online assessment.",
+    "We received your application. If you are not selected, we will not contact you further.",
+    "Thank you for applying. Should your background match the role, we will invite you to interview.",
+    "Thank you for applying. Due to high volume, we may not be moving forward with all candidates, and only those selected will be contacted.",
+    "Thank you for applying. Candidates who are not selected will be notified.",
+    "Thank you for applying. If we decide to move forward, we will contact you to schedule an interview.",
+    "Thank you for applying. If your experience is a strong match, we'll invite you to interview.",
+    "Thank you for applying. As a next step, you may be asked to complete an assessment.",
+    "Thank you for applying. Applicants that are chosen will be asked to complete a coding challenge.",
+    "Thank you for applying. We are unable to offer visa sponsorship for this role.",
+    "Thank you for applying. If you are\nselected, we will invite you to interview with the team.",
+  ];
+  for (const text of confirmations)
+    assert.equal(
+      classifyRules("", text).eventType,
+      "application_confirmed",
+      text,
+    );
+  const decisions = [
+    [
+      "Thank you for applying to Acme. Unfortunately, we have decided to move forward with other candidates.",
+      "rejected",
+    ],
+    [
+      "Thank you for your interest. Unfortunately, the position has been filled.",
+      "rejected",
+    ],
+    [
+      "Thank you for applying. Please complete the online assessment within 5 days.",
+      "assessment_invited",
+    ],
+    [
+      "We have decided not to move forward at this time, but should another position be a match, we will contact you.",
+      "rejected",
+    ],
+    [
+      "We will not be moving forward with your candidacy, however we will keep your resume on file and reach out if a role is a match.",
+      "rejected",
+    ],
+    [
+      "We'd like to invite you to interview, and if you are successful in that round we will discuss next steps.",
+      "interview_invited",
+    ],
+    [
+      "Unfortunately we are unable to offer you the position at this time.",
+      "rejected",
+    ],
+    ["Unfortunately, we have chosen to pursue other candidates.", "rejected"],
+    ["We have chosen to move ahead with other candidates.", "rejected"],
+    ["We are going to pursue other applicants.", "rejected"],
+    ["We will not be pursuing your candidacy.", "rejected"],
+    ["We won't be moving forward with your application.", "rejected"],
+    ["Your application was unsuccessful.", "rejected"],
+    ["We have filled the position with another candidate.", "rejected"],
+    ["We have decided to go with another candidate.", "rejected"],
+    [
+      "After careful consideration, we have decided to move forward with candidates whose experience more closely matches our needs.",
+      "rejected",
+    ],
+    [
+      "We have decided to move forward with your candidacy and would like to invite you to interview.",
+      "interview_invited",
+    ],
+    [
+      "Please share your availability for an interview. If the proposed times don't fit, let us know.",
+      "interview_invited",
+    ],
+  ];
+  for (const [text, type] of decisions)
+    assert.equal(classifyRules("", text).eventType, type, text);
+});
 test("Gmail MIME parser prefers plain text and ignores attachments", () => {
   const enc = (s: string) => Buffer.from(s).toString("base64url");
   assert.equal(
