@@ -12,6 +12,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Send,
   Settings2,
   ShieldCheck,
   SlidersHorizontal,
@@ -81,9 +82,9 @@ export default function App() {
     if (value) {
       setView("settings");
       value === "connected"
-        ? setToast("Gmail connected. Your first sync will begin shortly.")
+        ? setToast("gmail's connected, first sync starts in a sec")
         : setError(
-            "Gmail connection failed. Check your Desktop OAuth credentials, test user access, and Gmail API configuration.",
+            "gmail didn't connect. check the oauth client id/secret, that my account is a test user, and that the gmail api is turned on",
           );
       window.history.replaceState({}, "", "/");
     }
@@ -179,21 +180,21 @@ export default function App() {
     icon: typeof LayoutDashboard;
     count?: number;
   }[] = [
-    { id: "applications", label: "My applications", icon: LayoutDashboard },
-    { id: "discover", label: "Discover jobs", icon: Search },
+    { id: "applications", label: "applications", icon: LayoutDashboard },
+    { id: "discover", label: "find jobs", icon: Search },
     {
       id: "attention",
-      label: "Next actions",
+      label: "to do",
       icon: Bell,
       count: actions.length,
     },
     {
       id: "review",
-      label: "Review inbox",
+      label: "emails to sort",
       icon: Inbox,
       count: state?.review.length,
     },
-    { id: "settings", label: "Settings", icon: Settings2 },
+    { id: "settings", label: "settings", icon: Settings2 },
   ];
   const cohort = applications.filter(
     (a) =>
@@ -219,41 +220,33 @@ export default function App() {
   if (!state)
     return (
       <div className="loading-screen">
-        <div className="brand-mark">f.</div>
-        <h1>Fieldwork</h1>
+        <div className="brand-mark">
+          <Send size={22} />
+        </div>
+        <h1>application tracker</h1>
         {error ? (
           <Notice error>
             {error}{" "}
             <button
               onClick={() => void refresh().catch((e) => setError(e.message))}
             >
-              Retry
+              try again
             </button>
           </Notice>
         ) : (
-          <Busy text="Opening your workspace…" />
+          <Busy text="loading…" />
         )}
       </div>
     );
   return (
     <div className="shell">
       <aside className="sidebar">
-        <a className="brand" href="/" aria-label="Fieldwork home">
-          <span className="brand-mark">f.</span>
-          <span>
-            fieldwork<span className="brand-sub">YOUR NEXT CHAPTER</span>
+        <a className="brand" href="/" aria-label="home">
+          <span className="brand-mark">
+            <Send size={17} />
           </span>
+          <span>application tracker</span>
         </a>
-        <div className="workspace">
-          <span className="workspace-avatar">ME</span>
-          <div>
-            Personal workspace
-            <small>
-              <span className="live-dot" /> Local instance
-            </small>
-          </div>
-        </div>
-        <div className="nav-label">WORKSPACE</div>
         <nav>
           {nav.map(({ id, label, icon: Icon, count }) => (
             <button
@@ -270,44 +263,24 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="privacy-note">
-            <ShieldCheck size={18} />
-            <div>
-              Your search, your space.<small>Stored on this computer.</small>
-            </div>
-          </div>
           <button
             className="connection-summary"
             onClick={() => setView("settings")}
           >
             <Mail size={17} />
             <span>
-              {state.connection.connected
-                ? "Gmail connected"
-                : "Connect your Gmail"}
+              {state.connection.connected ? "gmail connected" : "connect gmail"}
               <small>
                 {state.connection.connected
                   ? state.connection.account
-                  : "Bring your updates together"}
+                  : "not set up yet"}
               </small>
             </span>
             <ChevronRight size={15} />
           </button>
-          <div className="version">
-            FIELDWORK <span>v0.2 · LOCAL</span>
-          </div>
         </div>
       </aside>
       <main className="main">
-        <header className="topbar">
-          <div className="breadcrumb">
-            Workspace <ChevronRight size={13} />
-            <strong>{nav.find((n) => n.id === view)?.label}</strong>
-          </div>
-          <span className="local-label">
-            <span className="live-dot" /> Private & local
-          </span>
-        </header>
         <div className="content">
           {connectionError && (
             <div className="banner error" role="alert">
@@ -319,7 +292,7 @@ export default function App() {
               <span>{error}</span>
               <button
                 className="icon-button"
-                aria-label="Dismiss error"
+                aria-label="dismiss error"
                 onClick={() => setError("")}
               >
                 <X size={17} />
@@ -330,9 +303,7 @@ export default function App() {
             <>
               <div className="page-heading">
                 <div>
-                  <div className="eyebrow">MAKE YOUR NEXT MOVE</div>
-                  <h1>Your search, in perspective.</h1>
-                  <p>A little clarity for everything that comes next.</p>
+                  <h1>how it's going</h1>
                 </div>
                 <div className="heading-actions">
                   <button
@@ -348,62 +319,62 @@ export default function App() {
                       size={16}
                       className={state.sync.running ? "spin" : ""}
                     />
-                    {state.sync.running ? "Syncing…" : "Sync Gmail"}
+                    {state.sync.running ? "syncing…" : "sync gmail"}
                   </button>
                   <button
                     className="button primary"
                     onClick={() => setAdding(true)}
                   >
                     <Plus size={17} />
-                    Add application
+                    add application
                   </button>
                 </div>
               </div>
-              <section className="metrics" aria-label="Search summary">
+              <section className="metrics" aria-label="summary">
                 <Metric
-                  title="APPLICATIONS"
+                  title="applied"
                   value={applications.length}
-                  detail={`${applications.filter((a) => !terminal.has(a.stage)).length} active opportunities`}
+                  detail={`${applications.filter((a) => !terminal.has(a.stage)).length} still open`}
                   icon={<BriefcaseBusiness size={18} />}
                 />
                 <Metric
-                  title="REACHED INTERVIEW"
+                  title="got interviews"
                   value={
                     applications.filter((a) => reached(a, "Interviewing"))
                       .length
                   }
-                  detail="Across your application history"
+                  detail="all time"
                   icon={<Mail size={18} />}
                 />
                 <Metric
-                  title="OFFERS RECEIVED"
+                  title="offers"
                   value={
                     applications.filter(
                       (a) => reached(a, "Offer") || reached(a, "Accepted"),
                     ).length
                   }
-                  detail="Every offer is a milestone"
+                  detail="all time"
                   icon={<ArrowUpRight size={18} />}
                 />
                 <Metric
-                  title="RESPONSE RATE"
+                  title="response rate"
                   value={`${cohort.length ? Math.round((responded / cohort.length) * 100) : 0}%`}
-                  detail={`${responded} / ${cohort.length} dated applications · excludes receipts`}
+                  detail={`${responded} of ${cohort.length} heard back (auto-confirmations don't count)`}
                   icon={<RefreshCw size={18} />}
                 />
               </section>
               <section className="overview">
                 <div className="activity-chart">
                   <div className="section-title">
-                    <h2>Building momentum</h2>
-                    <span>Applications · last 14 days</span>
+                    <h2>last 14 days</h2>
+                    <span>applications per day</span>
                   </div>
                   <ActivityChart apps={applications} />
                 </div>
                 <div className="pipeline">
                   <div className="section-title">
-                    <h2>Where things stand</h2>
-                    <span>Current stage</span>
+                    <h2>by stage</h2>
+                    <span>click one to filter</span>
                   </div>
                   <div className="stage-summary">
                     {(
@@ -446,7 +417,7 @@ export default function App() {
                   <Inbox size={18} />
                   <span>
                     {state.review.length
-                      ? `${state.review.length} email updates are ready for your review.`
+                      ? `${state.review.length} emails to sort`
                       : state.sync.error || state.sync.fileErrors[0]}
                   </span>
                   <button
@@ -454,7 +425,7 @@ export default function App() {
                       setView(state.review.length ? "review" : "settings")
                     }
                   >
-                    {state.review.length ? "Review updates" : "Check settings"}
+                    {state.review.length ? "sort them" : "check settings"}
                     <ArrowUpRight size={15} />
                   </button>
                 </div>
@@ -463,14 +434,13 @@ export default function App() {
                 <div className="table-heading">
                   <div>
                     <h2>
-                      All applications{" "}
+                      all applications{" "}
                       <span className="pill">{applications.length}</span>
                     </h2>
-                    <p>Your opportunities, all in one place.</p>
                   </div>
                   <a className="text-button" href="/api/export.csv" download>
                     <ArrowDownToLine size={15} />
-                    Export CSV
+                    export csv
                   </a>
                 </div>
                 <div className="toolbar">
@@ -478,32 +448,34 @@ export default function App() {
                     <Search size={17} />
                     <input
                       id="search"
-                      aria-label="Search applications"
-                      placeholder="Search company or role…"
+                      aria-label="search applications"
+                      placeholder="search company or role…"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                     />
                     <kbd>/</kbd>
                   </div>
                   <select
-                    aria-label="Filter stage"
+                    aria-label="filter by stage"
                     value={stage}
                     onChange={(e) => setStage(e.target.value)}
                   >
-                    <option value="">All stages</option>
+                    <option value="">all stages</option>
                     {stages.map((s) => (
-                      <option key={s}>{s}</option>
+                      <option key={s} value={s}>
+                        {s.toLowerCase()}
+                      </option>
                     ))}
                   </select>
                   <select
-                    aria-label="Sort applications"
+                    aria-label="sort"
                     value={sort}
                     onChange={(e) => setSort(e.target.value)}
                   >
-                    <option value="applied">Recently applied</option>
-                    <option value="activity">Latest activity</option>
-                    <option value="waiting">Longest waiting</option>
-                    <option value="company">Company A–Z</option>
+                    <option value="applied">recently applied</option>
+                    <option value="activity">latest activity</option>
+                    <option value="waiting">waiting longest</option>
+                    <option value="company">company a–z</option>
                   </select>
                   <button
                     className={`button secondary filter-button ${filters ? "selected" : ""}`}
@@ -511,40 +483,42 @@ export default function App() {
                     aria-expanded={filters}
                   >
                     <SlidersHorizontal size={16} />
-                    Filters
+                    filters
                   </button>
                 </div>
                 {filters && (
                   <div className="filter-row">
-                    <Field label="Applied from">
+                    <Field label="applied after">
                       <input
                         type="date"
                         value={after}
                         onChange={(e) => setAfter(e.target.value)}
                       />
                     </Field>
-                    <Field label="Applied through">
+                    <Field label="applied before">
                       <input
                         type="date"
                         value={before}
                         onChange={(e) => setBefore(e.target.value)}
                       />
                     </Field>
-                    <Field label="Work arrangement">
+                    <Field label="remote / hybrid / on-site">
                       <select
                         value={arrangement}
                         onChange={(e) => setArrangement(e.target.value)}
                       >
-                        <option value="">Any arrangement</option>
+                        <option value="">any</option>
                         {["Remote", "Hybrid", "On-site", "Unknown"].map((s) => (
-                          <option key={s}>{s}</option>
+                          <option key={s} value={s}>
+                            {s.toLowerCase()}
+                          </option>
                         ))}
                       </select>
                     </Field>
-                    <Field label="Location">
+                    <Field label="location">
                       <input
                         value={location}
-                        placeholder="City, state, or country"
+                        placeholder="city, state, or country"
                         onChange={(e) => setLocation(e.target.value)}
                       />
                     </Field>
@@ -554,7 +528,7 @@ export default function App() {
                         checked={salary}
                         onChange={(e) => setSalary(e.target.checked)}
                       />
-                      Has salary
+                      has salary
                     </label>
                     <button
                       className="text-button"
@@ -568,13 +542,13 @@ export default function App() {
                         setSearch("");
                       }}
                     >
-                      Clear filters
+                      clear filters
                     </button>
                   </div>
                 )}
                 {!applications.length ? (
                   <Empty
-                    title="Your next chapter starts here."
+                    title="nothing here yet"
                     action={
                       <div className="empty-actions">
                         <button
@@ -582,37 +556,37 @@ export default function App() {
                           onClick={() => setAdding(true)}
                         >
                           <Plus size={16} />
-                          Add your first application
+                          add one
                         </button>
                         <button
                           className="button secondary"
                           onClick={() => setView("settings")}
                         >
-                          Set up Gmail & text file
+                          set up gmail / links file
                         </button>
                       </div>
                     }
                   >
-                    Drop in a job link. Save the details. Let hiring updates
-                    find their way back to the right role.
+                    paste in a job link, or hook up gmail and it'll fill in from
+                    emails.
                   </Empty>
                 ) : !filtered.length ? (
-                  <Empty title="No matching applications">
-                    Try another company name or broaden your filters.
+                  <Empty title="nothing matches">
+                    try a different search or loosen the filters.
                   </Empty>
                 ) : (
                   <div className="table-scroll">
                     <table>
                       <thead>
                         <tr>
-                          <th>COMPANY / ROLE</th>
-                          <th>STAGE</th>
-                          <th>APPLIED</th>
-                          <th>LOCATION</th>
-                          <th>COMPENSATION</th>
-                          <th>LAST ACTIVITY</th>
+                          <th>company / role</th>
+                          <th>stage</th>
+                          <th>applied</th>
+                          <th>location</th>
+                          <th>pay</th>
+                          <th>last activity</th>
                           <th>
-                            <span className="sr-only">Open</span>
+                            <span className="sr-only">open</span>
                           </th>
                         </tr>
                       </thead>
@@ -635,10 +609,10 @@ export default function App() {
                                   </span>
                                   <span>
                                     <strong>
-                                      {a.company || "Company pending"}
+                                      {a.company || "no company yet"}
                                     </strong>
                                     <span>
-                                      {a.title || "Job details pending"}
+                                      {a.title || "no details yet"}
                                       {a.enrichment === "pending" && (
                                         <span className="tiny-dot" />
                                       )}
@@ -656,11 +630,11 @@ export default function App() {
                                         /, \d{4}$/,
                                         "",
                                       )
-                                    : "Unknown"}
+                                    : "?"}
                                   {a.appliedAt && a.dateBasis !== "user" && (
                                     <span
-                                      title={`Date basis: ${a.dateBasis}. Editable in details.`}
-                                      aria-label={`Date basis: ${a.dateBasis}`}
+                                      title={`date is a guess (${a.dateBasis}), can fix it in details`}
+                                      aria-label={`guessed date (${a.dateBasis})`}
                                     >
                                       {" "}
                                       ≈
@@ -670,12 +644,12 @@ export default function App() {
                               </td>
                               <td>
                                 <span className="cell-primary">
-                                  {a.location || "Not specified"}
+                                  {a.location || "not listed"}
                                 </span>
                                 <small>
                                   {a.workArrangement !== "Unknown"
-                                    ? a.workArrangement
-                                    : "Arrangement unknown"}
+                                    ? a.workArrangement.toLowerCase()
+                                    : ""}
                                 </small>
                               </td>
                               <td>
@@ -692,15 +666,13 @@ export default function App() {
                                     t.applicationId === a.id &&
                                     t.status === "pending",
                                 ) && (
-                                  <small className="action-hint">
-                                    Action pending
-                                  </small>
+                                  <small className="action-hint">to do</small>
                                 )}
                               </td>
                               <td>
                                 <button
                                   className="icon-button"
-                                  aria-label={`Open ${a.company || a.title || "application"}`}
+                                  aria-label={`open ${a.company || a.title || "application"}`}
                                   onClick={() => setSelected(a.id)}
                                 >
                                   <ArrowUpRight size={17} />
@@ -726,7 +698,7 @@ export default function App() {
                         disabled={currentPage <= 1}
                         onClick={() => setPage(currentPage - 1)}
                       >
-                        Previous
+                        prev
                       </button>
                       <span>
                         {currentPage} / {pageCount}
@@ -735,21 +707,20 @@ export default function App() {
                         disabled={currentPage >= pageCount}
                         onClick={() => setPage(currentPage + 1)}
                       >
-                        Next
+                        next
                       </button>
                     </div>
                   )}
-                  <span>≈ Estimated or file-default date</span>
+                  <span>≈ guessed date</span>
                 </div>
               </section>
               <div className="bottom-note">
                 <ShieldCheck size={14} />
                 <span>
-                  Stored locally. Last Gmail sync:{" "}
-                  {timeText(state.sync.lastSuccess)}.
+                  last gmail sync: {timeText(state.sync.lastSuccess)}.
                   {after || before
-                    ? ` Response cohort: ${after || "earliest"} – ${before || "latest"}.`
-                    : " Response cohort: all dated applications."}
+                    ? ` response rate covers ${after || "the start"} – ${before || "now"}.`
+                    : " response rate covers everything with a date."}
                 </span>
               </div>
             </>
@@ -758,15 +729,14 @@ export default function App() {
             <>
               <div className="page-heading">
                 <div>
-                  <div className="eyebrow">ONE THING AT A TIME</div>
-                  <h1>Your next moves.</h1>
-                  <p>Assessments and interviews that need your attention.</p>
+                  <h1>to do</h1>
+                  <p>assessments and interviews coming up</p>
                 </div>
               </div>
               {!actions.length ? (
-                <Empty title="A little breathing room.">
-                  There are no pending actions. Invitations from Gmail appear
-                  here after they’re matched to a role.
+                <Empty title="nothing to do right now">
+                  interview and assessment invites show up here once they're
+                  matched to an application.
                 </Empty>
               ) : (
                 <div className="action-list">
@@ -809,7 +779,7 @@ export default function App() {
             await refresh();
             setAdding(false);
             setSelected(id);
-            setToast("Application added.");
+            setToast("added");
           }}
         />
       )}
@@ -865,7 +835,7 @@ function ActivityChart({ apps }: { apps: Application[] }) {
       <svg
         viewBox="0 0 560 100"
         role="img"
-        aria-label={`Applications in the last 14 days: ${days.map((d) => `${d.date}: ${d.count}`).join(", ")}`}
+        aria-label={`applications per day, last 14 days: ${days.map((d) => `${d.date}: ${d.count}`).join(", ")}`}
       >
         <line x1="0" y1="87" x2="560" y2="87" stroke="#e9e9e2" />
         <line
@@ -895,7 +865,7 @@ function ActivityChart({ apps }: { apps: Application[] }) {
       </svg>
       <div className="chart-labels">
         <span>{dateText(days[0].date).replace(/, \d{4}/, "")}</span>
-        <span>Today</span>
+        <span>today</span>
       </div>
     </div>
   );
@@ -936,27 +906,25 @@ function ActionCard({
       </div>
       <div className="action-body">
         <button className="text-button" onClick={open}>
-          {application?.company || "Unknown company"}
+          {application?.company || "unknown company"}
           <ArrowUpRight size={14} />
         </button>
-        <h3>{action.title}</h3>
-        <p>{application?.title || "Role details pending"}</p>
+        <h3>{action.title.toLowerCase()}</h3>
+        <p>{application?.title || "no details yet"}</p>
         <span className="due-label">
-          {action.dueAt || "Date needs confirmation"}
-          {action.timeZone
-            ? ` · ${action.timeZone}`
-            : " · Time zone unconfirmed"}
+          {action.dueAt || "date not confirmed"}
+          {action.timeZone ? ` · ${action.timeZone}` : " · time zone?"}
         </span>
         {editing && (
           <div className="action-edit">
-            <Field label="Date / time">
+            <Field label="date / time">
               <input
                 value={due}
                 onChange={(e) => setDue(e.target.value)}
                 placeholder="2026-10-01 14:00"
               />
             </Field>
-            <Field label="Time zone">
+            <Field label="time zone">
               <input
                 value={zone}
                 onChange={(e) => setZone(e.target.value)}
@@ -967,7 +935,7 @@ function ActionCard({
               className="button secondary"
               onClick={() => void change({ dueAt: due, timeZone: zone })}
             >
-              Save
+              save
             </button>
           </div>
         )}
@@ -978,7 +946,7 @@ function ActionCard({
           onClick={() => void change({ status: "completed" })}
         >
           <Check size={15} />
-          Complete
+          done
         </button>
         <button
           className="text-button"
@@ -990,13 +958,13 @@ function ActionCard({
             setEditing(!editing);
           }}
         >
-          Edit date
+          edit date
         </button>
         <button
           className="text-button muted"
           onClick={() => void change({ status: "dismissed" })}
         >
-          Dismiss
+          dismiss
         </button>
       </div>
     </article>

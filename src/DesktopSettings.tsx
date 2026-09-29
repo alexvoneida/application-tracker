@@ -13,7 +13,7 @@ export function DesktopSettings() {
       void desktop
         .preferences()
         .then(setPreferences)
-        .catch(() => setError("Could not read desktop settings."));
+        .catch(() => setError("couldn't load desktop settings"));
   }, [desktop]);
   if (!desktop) return null;
   return (
@@ -21,8 +21,7 @@ export function DesktopSettings() {
       <div className="settings-title">
         <Monitor size={21} />
         <div>
-          <h2>Desktop app</h2>
-          <p>Your workspace, without a terminal.</p>
+          <h2>desktop app</h2>
         </div>
       </div>
       {error && <Notice error>{error}</Notice>}
@@ -42,51 +41,43 @@ export function DesktopSettings() {
               setPreferences(await desktop.setKeepRunning(enabled));
             } catch {
               setPreferences(previous);
-              setError(
-                "Could not save this desktop setting. Please try again.",
-              );
+              setError("couldn't save that, try again");
             } finally {
               setBusy(false);
             }
           }}
         />
         <span>
-          Keep running in the menu bar
+          keep running in the menu bar
           <small>
-            Closing the window keeps text-file scanning and scheduled Gmail sync
-            active. Reopen from the menu bar or Dock. Quit (⌘Q) stops
-            everything. Off by default; changes save immediately.
+            closing the window keeps the links file and gmail sync going. ⌘Q
+            actually quits. saves right away.
           </small>
         </span>
       </label>
       <p className="small muted">
-        This does not launch Fieldwork at login or keep your Mac awake. Sync
-        resumes after waking while the app is running.
+        doesn't open at login or keep the mac awake. sync picks back up after
+        the mac wakes.
       </p>
       {preferences && (
         <>
           <p className="small muted desktop-data-path">
-            Local records:{" "}
-            <code>{preferences.dataDirectory}/tracker.sqlite</code>
+            data: <code>{preferences.dataDirectory}/tracker.sqlite</code>
           </p>
           <button
             className="button secondary"
             onClick={() =>
               void desktop
                 .openDataDirectory()
-                .catch(() => setError("Could not open the data folder."))
+                .catch(() => setError("couldn't open the data folder"))
             }
           >
-            <FolderOpen size={15} /> Open data folder
+            <FolderOpen size={15} /> open data folder
           </button>
           <p className="small muted">
-            Fieldwork {preferences.version}
-            {preferences.development
-              ? " · Development copy (separate data)"
-              : ""}
-            . Installed apps do not automatically change when source files
-            change; rebuild and replace the app to update it. Your local data
-            stays in this folder.
+            v{preferences.version}
+            {preferences.development ? " · dev copy (separate data)" : ""}.
+            rebuild the dmg to update; data stays put.
           </p>
         </>
       )}

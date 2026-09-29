@@ -43,9 +43,11 @@ export async function api<T = any>(
     method,
     headers: { "Content-Type": "application/json", "X-Tracker-Token": token },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  }).catch(() => {
+    throw new Error("couldn't reach the server");
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Request failed.");
+  if (!response.ok) throw new Error(data.error || "something went wrong");
   if (data.csrf) token = data.csrf;
   return data;
 }
@@ -58,7 +60,7 @@ export const dateText = (value: string) =>
         day: "numeric",
         year: "numeric",
       })
-    : "Unknown date";
+    : "no date";
 export const timeText = (value: string) =>
   value
     ? new Date(value).toLocaleString(undefined, {
@@ -67,14 +69,14 @@ export const timeText = (value: string) =>
         hour: "numeric",
         minute: "2-digit",
       })
-    : "Not yet";
+    : "never";
 export function since(value: string) {
   if (!value) return "—";
   const days = Math.max(
     0,
     Math.floor((Date.now() - Date.parse(value)) / 86400000),
   );
-  return days === 0 ? "Today" : days === 1 ? "Yesterday" : `${days} days ago`;
+  return days === 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
 }
 export const safeLink = (url: string) => {
   try {

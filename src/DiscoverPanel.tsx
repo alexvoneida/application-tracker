@@ -27,16 +27,16 @@ import type { DesktopNotificationPermission } from "../shared/desktop";
 function permissionMessage(permission: DesktopNotificationPermission) {
   if (permission.error) return permission.error;
   if (permission.status === "denied")
-    return "Mac notifications are denied. Enable Fieldwork in macOS Notification Settings; macOS will not repeat a previously answered permission prompt.";
+    return "notifications are blocked. turn them on for application tracker in macos notification settings (macos won't ask again).";
   if (permission.status === "not-determined")
-    return "Mac notification permission has not been decided yet.";
+    return "haven't allowed or blocked notifications yet";
   if (permission.status === "provisional")
-    return "Mac notifications are allowed quietly. Enable banners and sounds in Notification Settings if you want visible alerts.";
+    return "notifications are on but quiet. turn on banners/sounds in notification settings to actually see them.";
   if (permission.status === "authorized")
     return permission.alertsEnabled
-      ? "Mac notification permission is allowed."
-      : "Mac notification permission is allowed, but alerts are disabled in Notification Settings.";
-  return "Mac notification permission is unavailable.";
+      ? "notifications are on"
+      : "notifications are allowed but alerts are off in notification settings";
+  return "can't check notification permission";
 }
 
 export function DiscoverPanel({
@@ -112,9 +112,9 @@ export function DiscoverPanel({
         const result =
           await window.fieldworkDesktop.requestNotificationPermission();
         setPermission(result);
-        return `Discovery preferences saved. ${permissionMessage(result)}`;
+        return `saved. ${permissionMessage(result)}`;
       }
-    }, "Discovery preferences saved. Alerts use these filters; existing jobs remain available.");
+    }, "saved. alerts use these filters now; jobs already found are still here.");
   }
   const shown = useMemo(
     () =>
@@ -136,11 +136,7 @@ export function DiscoverPanel({
     [state, search, mode],
   );
   if (!state || !config)
-    return error ? (
-      <Notice error>{error}</Notice>
-    ) : (
-      <Busy text="Loading job discovery…" />
-    );
+    return error ? <Notice error>{error}</Notice> : <Busy text="loading…" />;
   const healthy = state.sources.filter(
     (s) => s.enabled && s.lastSuccess && !s.error,
   ).length;
@@ -148,11 +144,8 @@ export function DiscoverPanel({
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">GET THERE EARLIER</div>
-          <h1>Your next opportunity.</h1>
-          <p>
-            New-grad and entry-level software roles, straight from the source.
-          </p>
+          <h1>find jobs</h1>
+          <p>new grad / entry level swe roles as they get posted</p>
         </div>
         <button
           className="button primary"
@@ -168,7 +161,7 @@ export function DiscoverPanel({
             })
           }
         >
-          {state.config.enabled ? "Pause monitoring" : "Start monitoring"}
+          {state.config.enabled ? "pause" : "start watching"}
         </button>
       </div>
       {connectionError && <Notice error>{connectionError}</Notice>}
@@ -179,23 +172,23 @@ export function DiscoverPanel({
       )}
       <div className="discovery-summary">
         <span>
-          <strong>{state.matching}</strong> matching roles
+          <strong>{state.matching}</strong> matching
         </span>
         <span>
-          <strong>{state.unread}</strong> unseen new matches
+          <strong>{state.unread}</strong> new
         </span>
         <span>
           <strong>
             {healthy}/{state.sources.filter((s) => s.enabled).length}
           </strong>{" "}
-          healthy sources
+          sources working
         </span>
         <span>
           {state.running
-            ? "Checking sources…"
+            ? "checking…"
             : state.config.enabled
-              ? "Monitoring active"
-              : "Monitoring paused"}
+              ? "watching"
+              : "paused"}
         </span>
         <button
           className="text-button"
@@ -203,37 +196,37 @@ export function DiscoverPanel({
           onClick={() =>
             void run(
               () => api("/discovery/check", "POST", {}),
-              "Checking sources that are due. Rate limits and retry delays are respected.",
+              "checking the ones that are due",
             )
           }
         >
-          <RefreshCw size={14} /> Check due sources
+          <RefreshCw size={14} /> check now
         </button>
       </div>
       {!state.config.enabled && (
         <Notice>
-          Start monitoring to import the GitHub list and discover supported
-          company boards. The first check establishes a baseline without sending
-          a burst of old-job alerts.
+          hit start to pull in the github list and find company boards. the
+          first check just records what's already there so it doesn't spam old
+          jobs.
         </Notice>
       )}
       <details className="settings-section discovery-settings">
         <summary>
-          <Search size={18} /> Search preferences & alerts
+          <Search size={18} /> filters & alerts
         </summary>
         <form onSubmit={save}>
           <div className="form-grid compact">
             <Field
-              label="Locations"
-              hint="Comma-separated alternatives, matched against the posted location. Blank means anywhere. Remote roles still have geographic restrictions."
+              label="locations"
+              hint="comma separated, matched against the listed location. blank = anywhere. remote jobs can still be location-locked."
             >
               <input
                 value={config.locations}
                 onChange={(e) => change("locations", e.target.value)}
-                placeholder="Denver, Colorado, Remote in USA"
+                placeholder="denver, colorado, remote in usa"
               />
             </Field>
-            <Field label="Work arrangement">
+            <Field label="remote / hybrid / on-site">
               <select
                 value={config.workArrangement}
                 onChange={(e) =>
@@ -244,13 +237,15 @@ export function DiscoverPanel({
                 }
               >
                 {["Any", "Remote", "Hybrid", "On-site"].map((v) => (
-                  <option key={v}>{v}</option>
+                  <option key={v} value={v}>
+                    {v.toLowerCase()}
+                  </option>
                 ))}
               </select>
             </Field>
             <Field
-              label="Maximum required experience (years)"
-              hint="Uses explicit experience statements and entry-level titles; check the original eligibility requirements."
+              label="max years of experience"
+              hint="based on what the posting says and entry-level titles. double check the actual posting."
             >
               <input
                 type="number"
@@ -263,8 +258,8 @@ export function DiscoverPanel({
               />
             </Field>
             <Field
-              label="Check interval (minutes)"
-              hint="Target interval per source, not a guaranteed detection time. Busy queues and backoff can delay checks."
+              label="check every (minutes)"
+              hint="per source, roughly. can run late if things are busy or a source is rate limiting."
             >
               <input
                 type="number"
@@ -275,8 +270,8 @@ export function DiscoverPanel({
               />
             </Field>
             <Field
-              label="Minimum annual salary"
-              hint="Matches when the published range’s upper end reaches this amount. No currency conversion; not a salary guarantee. Zero disables this filter."
+              label="min salary (per year)"
+              hint="matches if the top of the posted range hits this. no currency conversion. 0 = off."
             >
               <input
                 type="number"
@@ -287,7 +282,7 @@ export function DiscoverPanel({
                 onChange={(e) => change("minSalary", Number(e.target.value))}
               />
             </Field>
-            <Field label="Salary currency">
+            <Field label="currency">
               <select
                 value={config.currency}
                 onChange={(e) =>
@@ -303,23 +298,23 @@ export function DiscoverPanel({
               </select>
             </Field>
             <Field
-              label="Preferred keywords"
-              hint="Comma-separated alternatives; at least one must appear. Blank accepts all SWE specialties."
+              label="keywords (any)"
+              hint="comma separated, at least one has to show up. blank = any swe role."
             >
               <input
                 value={config.keywords}
                 onChange={(e) => change("keywords", e.target.value)}
-                placeholder="backend, full stack, Python"
+                placeholder="backend, full stack, python"
               />
             </Field>
-            <Field label="Excluded keywords">
+            <Field label="skip if it mentions">
               <input
                 value={config.excludeKeywords}
                 onChange={(e) => change("excludeKeywords", e.target.value)}
                 placeholder="security clearance"
               />
             </Field>
-            <Field label="Excluded companies">
+            <Field label="skip these companies">
               <input
                 value={config.excludeCompanies}
                 onChange={(e) => change("excludeCompanies", e.target.value)}
@@ -334,7 +329,7 @@ export function DiscoverPanel({
                 change("includeUnknownExperience", e.target.checked)
               }
             />
-            Include SWE roles with unestablished experience level
+            include ones where the experience level is unclear
           </label>
           <label className="check-label">
             <input
@@ -342,7 +337,7 @@ export function DiscoverPanel({
               checked={config.includeUnknownSalary}
               onChange={(e) => change("includeUnknownSalary", e.target.checked)}
             />
-            Include roles without comparable salary information
+            include ones with no usable salary info
           </label>
           <label className="check-label">
             <input
@@ -350,8 +345,7 @@ export function DiscoverPanel({
               checked={config.autoWatch}
               onChange={(e) => change("autoWatch", e.target.checked)}
             />
-            Automatically discover Greenhouse, Lever, and Ashby boards from
-            GitHub listings
+            auto-add greenhouse, lever, and ashby boards from the github list
           </label>
           <label className="check-label">
             <input
@@ -359,30 +353,28 @@ export function DiscoverPanel({
               checked={config.notifications}
               onChange={(e) => change("notifications", e.target.checked)}
             />
-            Notify me about newly detected matching roles
+            notify me about new matches
           </label>
           <p className="small muted">
-            Mac alerts work while Fieldwork is running, including in the menu
-            bar. Your Mac must be awake and online. Allow Fieldwork
-            notifications in macOS System Settings. Browser mode keeps matches
-            in this feed but does not send native Mac alerts.
+            mac notifications only work while the app is running (menu bar
+            counts) and the mac is awake. in the browser version they just show
+            up here.
           </p>
           {permission && (
             <div className="small" role="status">
               <p>{permissionMessage(permission)}</p>
               <p className="muted">
-                Permission status saved locally. Last checked:{" "}
-                {timeText(permission.checkedAt)}
+                last checked {timeText(permission.checkedAt)}
                 {permission.requestedAt
-                  ? ` · Requested: ${timeText(permission.requestedAt)}`
+                  ? ` · asked ${timeText(permission.requestedAt)}`
                   : ""}
-                . macOS remains the source of truth.
+                . macos settings are what actually count.
               </p>
             </div>
           )}
           <div className="button-row">
             <button className="button primary" disabled={busy}>
-              Save discovery preferences
+              save filters
             </button>
             {window.fieldworkDesktop && (
               <button
@@ -394,11 +386,11 @@ export function DiscoverPanel({
                     const result =
                       await window.fieldworkDesktop!.testNotification();
                     setPermission(result);
-                    return `${permissionMessage(result)}${["authorized", "provisional"].includes(result.status) ? " Test notification requested; check Focus mode if it does not appear." : ""}`;
+                    return `${permissionMessage(result)}${["authorized", "provisional"].includes(result.status) ? " sent a test one, check focus mode if it doesn't show." : ""}`;
                   })
                 }
               >
-                <Bell size={15} /> Test Mac notification
+                <Bell size={15} /> test notification
               </button>
             )}
             {window.fieldworkDesktop && (
@@ -412,62 +404,51 @@ export function DiscoverPanel({
                   )
                 }
               >
-                Open macOS Notification Settings
+                open notification settings
               </button>
             )}
           </div>
         </form>
       </details>
       <details className="settings-section discovery-settings">
-        <summary>Always-on phone alerts · Telegram</summary>
+        <summary>phone alerts (telegram)</summary>
         <p>
-          Run the discovery-only worker on a cloud server to receive Telegram
-          messages while your Mac is asleep or off. Each alert includes the
-          role, company, location, and an application link. Telegram messages
-          are free at this volume; cloud hosting may cost money.
+          run the worker on a cloud server to get telegram messages when the mac
+          is asleep. each one has the role, company, location, and apply link.
+          telegram is free, the server might not be.
         </p>
         <ol>
+          <li>save the filters above, then download the worker config.</li>
+          <li>make a telegram bot with @BotFather and start a chat with it.</li>
           <li>
-            Save your search preferences above, then download your worker
-            configuration.
-          </li>
-          <li>
-            Create your own Telegram bot using @BotFather and start a private
-            chat with it.
-          </li>
-          <li>
-            Deploy the included worker container with persistent storage. Add
-            the bot token and your chat ID as hosting secrets.
+            deploy the worker container with persistent storage and add the bot
+            token + chat id as secrets.
           </li>
         </ol>
         <p className="small muted">
-          The download contains only filters and job-board URLs—no Gmail access,
-          API keys, or application history. It enables cloud monitoring and
-          alerts. Local and cloud instances are independent: re-export and
-          restart the worker after changing filters. A newly deployed worker
-          starts with a quiet baseline; discoveries and applied status do not
-          sync between devices.
+          the file is just filters and board urls, no gmail, keys, or
+          applications. the worker and this app don't sync, so re-download and
+          restart it after changing filters. a fresh worker starts quiet (no
+          old-job alerts).
         </p>
         <a
           className="button secondary"
           href="/api/discovery/worker-config"
           download="fieldwork-worker.json"
         >
-          Download cloud worker configuration
+          download worker config
         </a>
         <p className="small muted">
-          Deployment and Telegram setup instructions are in CLOUD-WORKER.md in
-          the project. Downloading this file does not deploy or activate a cloud
-          service.
+          setup steps are in CLOUD-WORKER.md. downloading this doesn't deploy
+          anything.
         </p>
       </details>
       <details className="settings-section discovery-settings">
-        <summary>Sources & coverage ({state.sources.length})</summary>
+        <summary>sources ({state.sources.length})</summary>
         <p className="small muted">
-          Simplify’s SWE GitHub list plus supported boards discovered from its
-          links. This is not every company: Workday and other unsupported boards
-          are visible through GitHub only. Every newly added board is baselined
-          without old-job alerts. Up to 500 direct boards.
+          simplify's swe github list plus the boards it links to. not every
+          company, workday and other unsupported boards only come through
+          github. new boards start quiet. max 500 boards.
         </p>
         <form
           className="discovery-source-form"
@@ -483,14 +464,14 @@ export function DiscoverPanel({
             });
           }}
         >
-          <Field label="Company name">
+          <Field label="company">
             <input
               value={boardName}
               onChange={(e) => setBoardName(e.target.value)}
               maxLength={200}
             />
           </Field>
-          <Field label="Additional job board URL">
+          <Field label="board url">
             <input
               type="url"
               required
@@ -500,10 +481,10 @@ export function DiscoverPanel({
             />
           </Field>
           <button className="button secondary" disabled={busy}>
-            Watch board
+            add board
           </button>
         </form>
-        <Field label="Find a source">
+        <Field label="search sources">
           <input
             value={sourceSearch}
             onChange={(e) => setSourceSearch(e.target.value)}
@@ -523,15 +504,15 @@ export function DiscoverPanel({
                   <strong>{source.name}</strong>{" "}
                   <span className="small muted">{source.kind}</span>
                   <p className="small muted">
-                    Last successful check: {timeText(source.lastSuccess)} ·
-                    Next: {timeText(source.nextCheck)} · {source.count} postings
+                    last checked {timeText(source.lastSuccess)} · next{" "}
+                    {timeText(source.nextCheck)} · {source.count} postings
                   </p>
                   {source.error && <p className="error-text">{source.error}</p>}
                 </div>
                 <button
                   className="text-button"
                   disabled={busy}
-                  aria-label={`${source.enabled ? "Pause" : "Resume"} ${source.name}`}
+                  aria-label={`${source.enabled ? "pause" : "resume"} ${source.name}`}
                   onClick={() =>
                     void run(() =>
                       api(
@@ -542,30 +523,30 @@ export function DiscoverPanel({
                     )
                   }
                 >
-                  {source.enabled ? "Pause" : "Resume"}
+                  {source.enabled ? "pause" : "resume"}
                 </button>
               </div>
             ))}
         </div>
       </details>
       <div className="discovery-toolbar">
-        <Field label="Search discovered jobs">
+        <Field label="search jobs">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Company, role, location…"
+            placeholder="company, role, location…"
           />
         </Field>
-        <Field label="Show discoveries">
+        <Field label="show">
           <select value={mode} onChange={(e) => setMode(e.target.value)}>
-            <option value="matches">Matching open roles</option>
-            <option value="new">Unseen new matches</option>
-            <option value="saved">Saved matches</option>
-            <option value="all">All discovered roles</option>
-            <option value="dismissed">Dismissed roles</option>
+            <option value="matches">matching</option>
+            <option value="new">new</option>
+            <option value="saved">saved</option>
+            <option value="all">everything</option>
+            <option value="dismissed">dismissed</option>
           </select>
         </Field>
-        <span className="small muted">{shown.length} roles</span>
+        <span className="small muted">{shown.length} jobs</span>
       </div>
       <div className="discovery-jobs">
         {shown.slice(0, limit).map((job) => (
@@ -575,7 +556,7 @@ export function DiscoverPanel({
                 <div className="eyebrow">{job.company}</div>
                 <h2>{job.title}</h2>
                 <p>
-                  {job.location || "Location not listed"} ·{" "}
+                  {job.location || "location not listed"} ·{" "}
                   {job.workArrangement}
                 </p>
               </div>
@@ -583,27 +564,24 @@ export function DiscoverPanel({
                 className={`connection-pill ${!job.baseline && !job.seenAt ? "connected" : ""}`}
               >
                 {job.applicationId
-                  ? "Applied"
+                  ? "applied"
                   : job.closed
-                    ? "No longer listed"
+                    ? "taken down"
                     : job.disposition === "saved"
-                      ? "Saved"
+                      ? "saved"
                       : job.baseline
-                        ? "Existing at first check"
-                        : "Newly detected"}
+                        ? "was already up"
+                        : "new"}
               </span>
             </div>
-            <p className="small">
-              {job.salary ||
-                "Salary not published / not available from this source"}
-            </p>
+            <p className="small">{job.salary || "no salary listed"}</p>
             <p className="small muted">
-              Detected {timeText(job.firstSeenAt)}
+              found {timeText(job.firstSeenAt)}
               {job.publishedAt &&
-                ` · Employer publication: ${timeText(job.publishedAt)} (may be a republication)`}
+                ` · posted ${timeText(job.publishedAt)} (could be a repost)`}
             </p>
             <p className="small muted">
-              {job.entryEvidence} ·{" "}
+              {job.entryEvidence.toLowerCase()} ·{" "}
               {Object.keys(job.sources)
                 .map((id) => state.sources.find((s) => s.id === id)?.kind || id)
                 .filter((v, i, a) => a.indexOf(v) === i)
@@ -611,7 +589,7 @@ export function DiscoverPanel({
             </p>
             {!job.matches && (
               <p className="small muted">
-                Outside current filters: {job.matchReasons.join("; ")}
+                doesn't match: {job.matchReasons.join("; ")}
               </p>
             )}
             <div className="button-row">
@@ -628,14 +606,14 @@ export function DiscoverPanel({
                   )
                 }
               >
-                <ExternalLink size={15} /> Open application
+                <ExternalLink size={15} /> open posting
               </a>
               {job.applicationId ? (
                 <button
                   className="button secondary"
                   onClick={() => void onApplied(job.applicationId)}
                 >
-                  View tracked application
+                  see my application
                 </button>
               ) : (
                 <button
@@ -646,7 +624,7 @@ export function DiscoverPanel({
                     setDate(localDate());
                   }}
                 >
-                  <Check size={15} /> I applied
+                  <Check size={15} /> i applied
                 </button>
               )}
               <button
@@ -661,7 +639,7 @@ export function DiscoverPanel({
                 }
               >
                 <Bookmark size={14} />{" "}
-                {job.disposition === "saved" ? "Unsave" : "Save"}
+                {job.disposition === "saved" ? "unsave" : "save"}
               </button>
               <button
                 className="text-button"
@@ -673,7 +651,7 @@ export function DiscoverPanel({
                   )
                 }
               >
-                Details
+                details
               </button>
               <button
                 className="text-button"
@@ -688,7 +666,7 @@ export function DiscoverPanel({
                 }
               >
                 <X size={14} />{" "}
-                {job.disposition === "dismissed" ? "Restore" : "Dismiss"}
+                {job.disposition === "dismissed" ? "restore" : "dismiss"}
               </button>
             </div>
           </article>
@@ -697,10 +675,10 @@ export function DiscoverPanel({
       {!shown.length && (
         <div className="empty-state">
           <Search size={28} />
-          <h2>No roles in this view yet.</h2>
+          <h2>nothing here</h2>
           <p>
-            Start monitoring, check source health, or broaden your filters.
-            Missing salary and unknown experience can be included separately.
+            start watching, check the sources, or loosen the filters (there's a
+            toggle for no-salary and unclear-experience jobs).
           </p>
         </div>
       )}
@@ -709,14 +687,11 @@ export function DiscoverPanel({
           className="button secondary"
           onClick={() => setLimit((n) => n + 40)}
         >
-          Show more roles
+          show more
         </button>
       )}
       {confirm && (
-        <Modal
-          title="Record your application"
-          close={() => setConfirm(undefined)}
-        >
+        <Modal title="mark as applied" close={() => setConfirm(undefined)}>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -733,10 +708,10 @@ export function DiscoverPanel({
           >
             {error && <Notice error>{error}</Notice>}
             <p>
-              Confirm that you submitted an application for {confirm.title} at{" "}
-              {confirm.company}. Opening the listing does not submit anything.
+              did i actually apply to {confirm.title} at {confirm.company}? just
+              opening the posting doesn't count.
             </p>
-            <Field label="Date applied">
+            <Field label="date applied">
               <input
                 type="date"
                 required
@@ -745,7 +720,7 @@ export function DiscoverPanel({
               />
             </Field>
             <button className="button primary" disabled={busy}>
-              Confirm application submitted
+              yep, applied
             </button>
           </form>
         </Modal>
@@ -757,7 +732,7 @@ export function DiscoverPanel({
           </p>
           <pre className="description-text">
             {detail.description ||
-              "The source did not include a description. Open the application page for the full requirements."}
+              "no description from this source, open the posting for the full thing."}
           </pre>
           <a
             className="button primary"
@@ -765,7 +740,7 @@ export function DiscoverPanel({
             target="_blank"
             rel="noreferrer"
           >
-            Open original posting
+            open posting
           </a>
         </Modal>
       )}

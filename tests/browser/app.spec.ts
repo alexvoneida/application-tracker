@@ -11,25 +11,25 @@ test("capture, edit, filter, inspect snapshots, and export a role", async ({
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Your search, in perspective." }),
+    page.getByRole("heading", { name: "how it's going" }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Add application", exact: true })
+    .getByRole("button", { name: "add application", exact: true })
     .click();
   await page
-    .getByRole("textbox", { name: "Company", exact: true })
+    .getByRole("textbox", { name: "company", exact: true })
     .fill("Juniper Labs");
   await page
-    .getByRole("textbox", { name: "Job title", exact: true })
+    .getByRole("textbox", { name: "job title", exact: true })
     .fill("Software Engineer");
   await page
-    .getByLabel("Job description (optional)")
+    .getByLabel("job description (optional)")
     .fill(
       "Build reliable software and collaborate with designers and engineers. Full-time remote position in the United States. USD 140,000 to 180,000 base salary per year.",
     );
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "Add application", exact: true })
+    .getByRole("button", { name: "add application", exact: true })
     .click();
   await expect(
     page
@@ -38,40 +38,35 @@ test("capture, edit, filter, inspect snapshots, and export a role", async ({
   ).toBeVisible();
   await page
     .getByRole("dialog")
-    .getByLabel("Stage", { exact: true })
+    .getByLabel("stage", { exact: true })
     .selectOption("Interviewing");
   await page
     .getByRole("dialog")
-    .getByLabel("Compensation as posted")
+    .getByLabel("pay (as posted)")
     .fill("USD 140,000–180,000 / year");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Save changes" })
-    .click();
-  await expect(
-    page.getByText("Changes saved. Your edits take priority"),
-  ).toBeVisible();
-  await page.getByRole("tab", { name: "Timeline" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "save" }).click();
+  await expect(page.getByText("saved. my edits win")).toBeVisible();
+  await page.getByRole("tab", { name: "timeline" }).click();
   await expect(
     page.getByRole("heading", {
-      name: "Status corrected: Applied → Interviewing",
+      name: "changed stage: applied → interviewing",
     }),
   ).toBeVisible();
-  await page.getByRole("tab", { name: "Saved description" }).click();
+  await page.getByRole("tab", { name: "description" }).click();
   await expect(page.locator(".description-text")).toContainText(
     "Build reliable software",
   );
-  await page.getByRole("button", { name: "Close dialog" }).click();
-  await page.getByLabel("Search applications").fill("Juniper");
+  await page.getByRole("button", { name: "close" }).click();
+  await page.getByLabel("search applications").fill("Juniper");
   await expect(page.locator("tbody tr")).toHaveCount(1);
-  await page.getByLabel("Filter stage").selectOption("Rejected");
+  await page.getByLabel("filter by stage").selectOption("Rejected");
   await expect(
-    page.getByRole("heading", { name: "No matching applications" }),
+    page.getByRole("heading", { name: "nothing matches" }),
   ).toBeVisible();
-  await page.getByLabel("Filter stage").selectOption("Interviewing");
+  await page.getByLabel("filter by stage").selectOption("Interviewing");
   await expect(page.locator("tbody tr")).toHaveCount(1);
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("link", { name: "Export CSV" }).click();
+  await page.getByRole("link", { name: "export csv" }).click();
   expect((await downloadPromise).suggestedFilename()).toBe("applications.csv");
   expect(errors).toEqual([]);
   await page.screenshot({ path: "test-results/desktop.png", fullPage: true });
@@ -86,26 +81,22 @@ test("settings save, secrets remain hidden, and a role can be deleted", async ({
     data: { company: "Delete me", title: "Test application" },
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByLabel("Sync interval (minutes)").fill("10");
-  await page.getByRole("button", { name: "Save settings" }).click();
-  await expect(
-    page.getByText("Settings saved.", { exact: true }),
-  ).toBeVisible();
+  await page.getByRole("button", { name: "settings", exact: true }).click();
+  await page.getByLabel("sync every (minutes)").fill("10");
+  await page.getByRole("button", { name: "save", exact: true }).click();
+  await expect(page.getByText("saved", { exact: true })).toBeVisible();
   await page.reload();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await expect(page.getByLabel("Sync interval (minutes)")).toHaveValue("10");
-  await page.getByRole("button", { name: "My applications" }).click();
+  await page.getByRole("button", { name: "settings", exact: true }).click();
+  await expect(page.getByLabel("sync every (minutes)")).toHaveValue("10");
+  await page.getByRole("button", { name: "applications" }).click();
   await page
-    .getByRole("button", { name: "Open Delete me", exact: true })
+    .getByRole("button", { name: "open Delete me", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Delete application", exact: true })
-    .click();
-  await page.getByRole("button", { name: "Delete permanently" }).click();
+  await page.getByRole("button", { name: "delete", exact: true }).click();
+  await page.getByRole("button", { name: "delete for good" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "Open Delete me", exact: true }),
+    page.getByRole("button", { name: "open Delete me", exact: true }),
   ).toHaveCount(0);
 });
 
@@ -134,18 +125,16 @@ test("mobile layout remains usable with keyboard-accessible dialogs", async ({
     JSON.stringify(overflow),
   ).toBeLessThanOrEqual(390);
   await page
-    .getByRole("button", { name: "Add application", exact: true })
+    .getByRole("button", { name: "add application", exact: true })
     .click();
-  await expect(page.getByLabel("Job link", { exact: true })).toBeFocused();
+  await expect(page.getByLabel("job link", { exact: true })).toBeFocused();
   await page
-    .getByRole("textbox", { name: "Company", exact: true })
+    .getByRole("textbox", { name: "company", exact: true })
     .fill("Local test");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "A few things to connect." }),
-  ).toBeVisible();
+  await page.getByRole("button", { name: "settings", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "settings" })).toBeVisible();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth),
   ).toBeLessThanOrEqual(390);
@@ -200,34 +189,34 @@ test("review edits survive refresh, attaching an OA creates an action, and compl
   });
   store.close();
   await page.goto("/");
-  await page.getByRole("button", { name: "Review inbox", exact: true }).click();
   await page
-    .getByLabel("Company (for a new record)", { exact: true })
+    .getByRole("button", { name: "emails to sort", exact: true })
+    .click();
+  await page
+    .getByLabel("company (if it's new)", { exact: true })
     .fill("Edited extraction");
   await page.waitForResponse(
     (r) => r.url().endsWith("/api/state") && r.status() === 200,
   );
   await expect(
-    page.getByLabel("Company (for a new record)", { exact: true }),
+    page.getByLabel("company (if it's new)", { exact: true }),
   ).toHaveValue("Edited extraction");
-  await page.getByLabel("Time zone", { exact: true }).fill("America/Denver");
-  await page.getByRole("button", { name: "Attach event", exact: true }).click();
+  await page.getByLabel("time zone", { exact: true }).fill("America/Denver");
+  await page.getByRole("button", { name: "attach it", exact: true }).click();
   await expect(
     page
       .getByRole("status")
-      .filter({ hasText: "Attached to Cedar Systems — Backend Engineer" }),
+      .filter({ hasText: "attached to Cedar Systems — Backend Engineer" }),
   ).toHaveCount(1);
+  await expect(page.getByRole("heading", { name: "all sorted" })).toBeVisible();
+  await page.getByRole("button", { name: "to do", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "You’re all caught up." }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Next actions", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Assessment invited" }),
+    page.getByRole("heading", { name: "assessment invited" }),
   ).toBeVisible();
   await expect(page.getByText("2026-10-01 · America/Denver")).toBeVisible();
-  await page.getByRole("button", { name: "Complete", exact: true }).click();
+  await page.getByRole("button", { name: "done", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "A little breathing room." }),
+    page.getByRole("heading", { name: "nothing to do right now" }),
   ).toBeVisible();
   const detail = await (
     await page.request.get(`/api/applications/${application.id}`)
@@ -279,7 +268,9 @@ test("review lists oldest email first and confirms a dismissal before removing i
     });
   store.close();
   await page.goto("/");
-  await page.getByRole("button", { name: "Review inbox", exact: true }).click();
+  await page
+    .getByRole("button", { name: "emails to sort", exact: true })
+    .click();
   const headings = page.locator(".review-item h3");
   await expect(headings.filter({ hasText: "Order fixture" })).toHaveText([
     "Order fixture older",
@@ -292,10 +283,10 @@ test("review lists oldest email first and confirms a dismissal before removing i
     }),
   });
   await older
-    .getByRole("button", { name: "Dismiss unrelated email", exact: true })
+    .getByRole("button", { name: "not a job email", exact: true })
     .click();
   await expect(
-    page.getByRole("status").filter({ hasText: /^Dismissed$/ }),
+    page.getByRole("status").filter({ hasText: /^dismissed$/ }),
   ).toHaveCount(1);
   await expect(older).toHaveCount(0);
   await expect(
@@ -343,7 +334,7 @@ for (const refreshFails of [false, true]) {
     store.close();
     await page.goto("/");
     await page
-      .getByRole("button", { name: "Review inbox", exact: true })
+      .getByRole("button", { name: "emails to sort", exact: true })
       .click();
     const review = page.locator(".review-item").filter({
       has: page.getByRole("heading", {
@@ -352,7 +343,7 @@ for (const refreshFails of [false, true]) {
       }),
     });
     await review
-      .getByLabel("Title (for a new record)")
+      .getByLabel("title (if it's new)")
       .fill("Edited Software Engineer");
     let failCreation = true;
     let failRefresh = false;
@@ -380,20 +371,20 @@ for (const refreshFails of [false, true]) {
       await route.continue();
     });
     await review
-      .getByRole("button", { name: "Create new application", exact: true })
+      .getByRole("button", { name: "new application", exact: true })
       .click();
     await expect(
       review.getByText("Fixture create failure. Please retry."),
     ).toBeVisible();
-    await expect(review.getByLabel("Match to application")).toHaveValue("");
-    await expect(review.getByLabel("Title (for a new record)")).toHaveValue(
+    await expect(review.getByLabel("which application")).toHaveValue("");
+    await expect(review.getByLabel("title (if it's new)")).toHaveValue(
       "Edited Software Engineer",
     );
     await review
-      .getByRole("button", { name: "Create new application", exact: true })
+      .getByRole("button", { name: "new application", exact: true })
       .click();
     await expect(
-      review.getByRole("button", { name: "Application created", exact: true }),
+      review.getByRole("button", { name: "created", exact: true }),
     ).toBeDisabled();
     const state = await (await page.request.get("/api/state")).json();
     const created = state.applications.filter(
@@ -401,12 +392,12 @@ for (const refreshFails of [false, true]) {
     );
     expect(created).toHaveLength(1);
     const id = created[0].id;
-    await expect(review.getByLabel("Match to application")).toHaveValue(id);
+    await expect(review.getByLabel("which application")).toHaveValue(id);
     await expect(
-      review.getByLabel("Match to application").locator("option:checked"),
+      review.getByLabel("which application").locator("option:checked"),
     ).toHaveText(`${company} — Edited Software Engineer`);
     await expect(
-      review.getByRole("button", { name: "Application created", exact: true }),
+      review.getByRole("button", { name: "created", exact: true }),
     ).toBeDisabled();
     expect(state.review.some((source: any) => source.id === sourceId)).toBe(
       true,
@@ -419,9 +410,9 @@ for (const refreshFails of [false, true]) {
       (response) =>
         response.url().endsWith("/api/state") && response.status() === 200,
     );
-    await expect(review.getByLabel("Match to application")).toHaveValue(id);
+    await expect(review.getByLabel("which application")).toHaveValue(id);
     await review
-      .getByRole("button", { name: "Attach event", exact: true })
+      .getByRole("button", { name: "attach it", exact: true })
       .click();
     await expect(review).toHaveCount(0);
     const detail = await (
@@ -471,35 +462,27 @@ test("discovery filters, cloud export, and explicit applied confirmation", async
     .run(id, JSON.stringify(record));
   store.close();
   await page.goto("/?view=discover");
-  await expect(
-    page.getByRole("heading", { name: "Your next opportunity." }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "find jobs" })).toBeVisible();
   await expect(
     page.getByRole("heading", { name: record.title, exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Details", exact: true }).click();
+  await page.getByRole("button", { name: "details", exact: true }).click();
   await expect(
     page.getByRole("dialog").locator(".description-text"),
   ).toContainText("Build useful software.");
-  await page.getByRole("button", { name: "Close dialog" }).click();
-  await page.getByText("Search preferences & alerts", { exact: true }).click();
-  await page.getByLabel("Locations", { exact: true }).fill("Boston");
-  await page
-    .getByRole("button", { name: "Save discovery preferences" })
-    .click();
+  await page.getByRole("button", { name: "close" }).click();
+  await page.getByText("filters & alerts", { exact: true }).click();
+  await page.getByLabel("locations", { exact: true }).fill("Boston");
+  await page.getByRole("button", { name: "save filters" }).click();
   await expect(
-    page.getByRole("heading", { name: "No roles in this view yet." }),
+    page.getByRole("heading", { name: "nothing here" }),
   ).toBeVisible();
-  await page.getByLabel("Locations", { exact: true }).fill("Denver");
-  await page
-    .getByRole("button", { name: "Save discovery preferences" })
-    .click();
+  await page.getByLabel("locations", { exact: true }).fill("Denver");
+  await page.getByRole("button", { name: "save filters" }).click();
   await expect(
     page.getByRole("heading", { name: record.title, exact: true }),
   ).toBeVisible();
-  await page
-    .getByText("Always-on phone alerts · Telegram", { exact: true })
-    .click();
+  await page.getByText("phone alerts (telegram)", { exact: true }).click();
   const exported = await (
     await page.request.get("/api/discovery/worker-config")
   ).json();
@@ -511,20 +494,18 @@ test("discovery filters, cloud export, and explicit applied confirmation", async
     "githubEnabled",
     "version",
   ]);
-  await page.getByRole("button", { name: "I applied", exact: true }).click();
-  await page.getByLabel("Date applied", { exact: true }).fill("2026-09-23");
-  await page
-    .getByRole("button", { name: "Confirm application submitted" })
-    .click();
+  await page.getByRole("button", { name: "i applied", exact: true }).click();
+  await page.getByLabel("date applied", { exact: true }).fill("2026-09-23");
+  await page.getByRole("button", { name: "yep, applied" }).click();
   await expect(
     page
       .getByRole("dialog")
       .getByRole("heading", { name: "Discovery fixture", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("dialog").getByLabel("Application date", { exact: true }),
+    page.getByRole("dialog").getByLabel("date applied", { exact: true }),
   ).toHaveValue("2026-09-23");
-  await page.getByRole("button", { name: "Close dialog" }).click();
+  await page.getByRole("button", { name: "close" }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth),
@@ -536,10 +517,10 @@ test("dragging a text selection out of a dialog keeps it open", async ({
 }) => {
   await page.goto("/");
   await page
-    .getByRole("button", { name: "Add application", exact: true })
+    .getByRole("button", { name: "add application", exact: true })
     .click();
   const dialog = page.getByRole("dialog");
-  const company = dialog.getByRole("textbox", { name: "Company", exact: true });
+  const company = dialog.getByRole("textbox", { name: "company", exact: true });
   await company.fill("Drag selection fixture");
   const box = (await company.boundingBox())!;
   await page.mouse.move(box.x + 5, box.y + box.height / 2);
@@ -574,17 +555,17 @@ test("refreshing an application from its link keeps unsaved edits", async ({
     .first()
     .click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Location", { exact: true }).fill("Boulder, CO");
-  await dialog.getByRole("tab", { name: "Saved description" }).click();
+  await dialog.getByLabel("location", { exact: true }).fill("Boulder, CO");
+  await dialog.getByRole("tab", { name: "description" }).click();
   const reloaded = page.waitForResponse(
     (r) =>
       r.request().method() === "GET" &&
       /^\/api\/applications\/[^/]+$/.test(new URL(r.url()).pathname),
   );
-  await dialog.getByRole("button", { name: "Refresh from link" }).click();
+  await dialog.getByRole("button", { name: "refetch from link" }).click();
   await reloaded;
-  await dialog.getByRole("tab", { name: "Role details" }).click();
-  await expect(dialog.getByLabel("Location", { exact: true })).toHaveValue(
+  await dialog.getByRole("tab", { name: "details" }).click();
+  await expect(dialog.getByLabel("location", { exact: true })).toHaveValue(
     "Boulder, CO",
   );
 });
@@ -618,7 +599,7 @@ test("editing an action date starts from its current value", async ({
   store.put("actions", action);
   store.close();
   await page.goto("/");
-  await page.getByRole("button", { name: "Next actions", exact: true }).click();
+  await page.getByRole("button", { name: "to do", exact: true }).click();
   const card = page.locator(".action-card").filter({
     has: page.getByRole("heading", { name: "Reschedule fixture interview" }),
   });
@@ -634,8 +615,8 @@ test("editing an action date starts from its current value", async ({
   await expect(card.getByText("2026-10-08 09:30 · America/Denver")).toBeVisible(
     { timeout: 10000 },
   );
-  await card.getByRole("button", { name: "Edit date" }).click();
-  await expect(card.getByLabel("Date / time", { exact: true })).toHaveValue(
+  await card.getByRole("button", { name: "edit date" }).click();
+  await expect(card.getByLabel("date / time", { exact: true })).toHaveValue(
     "2026-10-08 09:30",
   );
 });
@@ -650,23 +631,21 @@ test("pausing monitoring does not save unsaved search preferences", async ({
     await route.fulfill({ json: { ok: true } });
   });
   await page.goto("/");
+  await page.getByRole("button", { name: "find jobs", exact: true }).click();
+  await page.getByText("filters & alerts").click();
   await page
-    .getByRole("button", { name: "Discover jobs", exact: true })
-    .click();
-  await page.getByText("Search preferences & alerts").click();
-  await page
-    .getByLabel("Excluded keywords", { exact: true })
+    .getByLabel("skip if it mentions", { exact: true })
     .fill("unsaved draft keyword");
   await page
     .getByRole("button", {
-      name: saved.config.enabled ? "Pause monitoring" : "Start monitoring",
+      name: saved.config.enabled ? "pause" : "start watching",
     })
     .click();
   await expect.poll(() => posted.length).toBe(1);
   expect(posted[0].excludeKeywords).toBe(saved.config.excludeKeywords);
   expect(posted[0].enabled).toBe(!saved.config.enabled);
   await expect(
-    page.getByLabel("Excluded keywords", { exact: true }),
+    page.getByLabel("skip if it mentions", { exact: true }),
   ).toHaveValue("unsaved draft keyword");
 });
 
@@ -690,22 +669,22 @@ test("saving a description snapshot leaves other unsaved edits unsaved", async (
     .first()
     .click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Location", { exact: true }).fill("Austin, TX");
-  await dialog.getByRole("tab", { name: "Saved description" }).click();
+  await dialog.getByLabel("location", { exact: true }).fill("Austin, TX");
+  await dialog.getByRole("tab", { name: "description" }).click();
   await dialog
-    .getByLabel("Save a new description", { exact: true })
+    .getByLabel("new description", { exact: true })
     .fill("Build internal tools for the platform team.");
   const saved = page.waitForResponse(
     (r) => r.request().method() === "PATCH" && r.url().includes(application.id),
   );
-  await dialog.getByRole("button", { name: "Save snapshot" }).click();
+  await dialog.getByRole("button", { name: "save description" }).click();
   expect((await saved).ok()).toBe(true);
   const detail = await (
     await page.request.get(`/api/applications/${application.id}`)
   ).json();
   expect(detail.application.location).toBe("");
-  await dialog.getByRole("tab", { name: "Role details" }).click();
-  await expect(dialog.getByLabel("Location", { exact: true })).toHaveValue(
+  await dialog.getByRole("tab", { name: "details" }).click();
+  await expect(dialog.getByLabel("location", { exact: true })).toHaveValue(
     "Austin, TX",
   );
 });
@@ -726,8 +705,8 @@ test("deleting the only application on the last page shows the previous page", a
     created.set(company, application.id);
   }
   await page.goto("/");
-  await page.getByLabel("Search applications").fill("Paging fixture");
-  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByLabel("search applications").fill("Paging fixture");
+  await page.getByRole("button", { name: "next", exact: true }).click();
   await expect(page.getByText("2 / 2", { exact: true })).toBeVisible();
   const rows = page.locator("tbody tr");
   await expect(rows).toHaveCount(1);
@@ -782,11 +761,9 @@ test("a failed application confirmation shows its error inside the dialog", asyn
   const card = page.locator("article.discovery-job").filter({
     has: page.getByText("Record error fixture", { exact: true }),
   });
-  await card.getByRole("button", { name: "I applied", exact: true }).click();
+  await card.getByRole("button", { name: "i applied", exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await dialog
-    .getByRole("button", { name: "Confirm application submitted" })
-    .click();
+  await dialog.getByRole("button", { name: "yep, applied" }).click();
   await expect(dialog.getByText("Fixture applied failure.")).toBeVisible();
 });
 
@@ -795,7 +772,7 @@ test("a connection error banner clears once polling recovers", async ({
 }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Your search, in perspective." }),
+    page.getByRole("heading", { name: "how it's going" }),
   ).toBeVisible();
   let failNext = true;
   await page.route("**/api/state", (route) => {

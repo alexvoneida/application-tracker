@@ -15,7 +15,7 @@ export function Badge({ stage }: { stage: Stage }) {
   return (
     <span className={`badge badge-${stage.toLowerCase()}`}>
       <span />
-      {stage}
+      {stage.toLowerCase()}
     </span>
   );
 }
@@ -74,11 +74,7 @@ export function Modal({
     >
       <div className="modal-heading">
         <h2 id={titleId}>{title}</h2>
-        <button
-          className="icon-button"
-          onClick={close}
-          aria-label="Close dialog"
-        >
+        <button className="icon-button" onClick={close} aria-label="close">
           <X size={20} />
         </button>
       </div>
@@ -129,7 +125,7 @@ export function Empty({
     </div>
   );
 }
-export function Busy({ text = "Working…" }: { text?: string }) {
+export function Busy({ text = "working…" }: { text?: string }) {
   return (
     <span className="busy">
       <LoaderCircle size={15} className="spin" />

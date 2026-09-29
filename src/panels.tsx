@@ -63,17 +63,15 @@ export function AddApplication({
     }
   }
   return (
-    <Modal title="Add an application" close={close}>
+    <Modal title="add an application" close={close}>
       <form onSubmit={submit}>
-        <p className="modal-intro">
-          A link is enough to start. Add any details you already know.
-        </p>
+        <p className="modal-intro">just the link is fine, rest is optional.</p>
         {error && <Notice error>{error}</Notice>}
         <div className="form-grid">
           <Field
-            label="Job link"
+            label="job link"
             full
-            hint="We’ll try to save the job description and fill in the details."
+            hint="it'll try to grab the description and fill in the rest"
           >
             <input
               autoFocus
@@ -84,21 +82,21 @@ export function AddApplication({
               placeholder="https://company.com/careers/role"
             />
           </Field>
-          <Field label="Company">
+          <Field label="company">
             <input
               value={draft.company}
               onChange={(e) => setDraft({ ...draft, company: e.target.value })}
-              placeholder="Company name"
+              placeholder="company"
             />
           </Field>
-          <Field label="Job title">
+          <Field label="job title">
             <input
               value={draft.title}
               onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-              placeholder="Software Engineer"
+              placeholder="software engineer"
             />
           </Field>
-          <Field label="Application date">
+          <Field label="date applied">
             <input
               type="date"
               value={draft.appliedAt}
@@ -107,7 +105,7 @@ export function AddApplication({
               }
             />
           </Field>
-          <Field label="Stage">
+          <Field label="stage">
             <select
               value={draft.stage}
               onChange={(e) =>
@@ -115,18 +113,20 @@ export function AddApplication({
               }
             >
               {stages.map((s) => (
-                <option key={s}>{s}</option>
+                <option key={s} value={s}>
+                  {s.toLowerCase()}
+                </option>
               ))}
             </select>
           </Field>
-          <Field label="Job description (optional)" full>
+          <Field label="job description (optional)" full>
             <textarea
               rows={4}
               value={draft.description}
               onChange={(e) =>
                 setDraft({ ...draft, description: e.target.value })
               }
-              placeholder="Paste the description if the job page is unavailable…"
+              placeholder="paste it here if the job page won't load…"
             />
           </Field>
           <label className="check-label full">
@@ -137,20 +137,20 @@ export function AddApplication({
                 setDraft({ ...draft, reapply: e.target.checked })
               }
             />
-            This is a new application to a previously tracked posting
+            reapplying to a posting i already have
           </label>
         </div>
         <div className="modal-footer">
           <button type="button" className="button secondary" onClick={close}>
-            Cancel
+            cancel
           </button>
           <button className="button primary" disabled={busy}>
             {busy ? (
-              <Busy text="Adding…" />
+              <Busy text="adding…" />
             ) : (
               <>
                 <Plus size={16} />
-                Add application
+                add application
               </>
             )}
           </button>
@@ -258,7 +258,7 @@ export function ApplicationPanel({
     e.preventDefault();
     if (!draft || !detail) return;
     const baseline = applicationInput.parse(detail.application);
-    // The description has its own form ("Save snapshot") on another tab.
+    // The description has its own form ("save description") on another tab.
     const patch: Partial<Draft> = Object.fromEntries(
       Object.entries(draft).filter(
         ([key, value]) =>
@@ -267,7 +267,7 @@ export function ApplicationPanel({
     );
     await action(
       () => api(`/applications/${id}`, "PATCH", patch),
-      "Changes saved. Your edits take priority over future extraction.",
+      "saved. my edits win over future extraction.",
       patch,
     );
   }
@@ -277,7 +277,7 @@ export function ApplicationPanel({
     const patch = { description: draft.description };
     await action(
       () => api(`/applications/${id}`, "PATCH", patch),
-      "Description snapshot saved.",
+      "saved the description",
       patch,
     );
   }
@@ -287,20 +287,20 @@ export function ApplicationPanel({
   const selectedSnapshot =
     detail?.snapshots.find((s) => s.id === snapshot) || detail?.snapshots[0];
   return (
-    <Modal title={app?.company || "Application details"} close={close} wide>
+    <Modal title={app?.company || "application"} close={close} wide>
       {error && <Notice error>{error}</Notice>}
       {!detail || !draft || !app ? (
         <div className="panel-padding">
-          <Busy text="Loading application…" />
+          <Busy text="loading…" />
         </div>
       ) : (
         <>
           <div className="detail-heading">
             <div>
-              <h2>{app.title || "Job title pending"}</h2>
+              <h2>{app.title || "no title yet"}</h2>
               <div className="detail-meta">
                 <Badge stage={app.stage} />
-                <span>{app.location || "Location not specified"}</span>
+                <span>{app.location || "location not listed"}</span>
                 {safeLink(app.url) && (
                   <a
                     className="text-button"
@@ -308,18 +308,14 @@ export function ApplicationPanel({
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Original posting
+                    job posting
                     <ExternalLink size={13} />
                   </a>
                 )}
               </div>
             </div>
           </div>
-          <div
-            className="tabs"
-            role="tablist"
-            aria-label="Application sections"
-          >
+          <div className="tabs" role="tablist" aria-label="sections">
             {(["details", "timeline", "description"] as const).map((t) => (
               <button
                 key={t}
@@ -329,17 +325,17 @@ export function ApplicationPanel({
                 className={tab === t ? "active" : ""}
               >
                 {t === "details"
-                  ? "Role details"
+                  ? "details"
                   : t === "timeline"
-                    ? `Timeline · ${detail.events.length}`
-                    : "Saved description"}
+                    ? `timeline · ${detail.events.length}`
+                    : "description"}
               </button>
             ))}
           </div>
           {message && <Notice>{message}</Notice>}
           {app.enrichment === "pending" && (
             <div className="inline-note">
-              <Busy text="Extracting job details in the background…" />
+              <Busy text="pulling job details…" />
             </div>
           )}
           {app.enrichmentError && (
@@ -355,7 +351,7 @@ export function ApplicationPanel({
                     )
                   }
                 >
-                  Retry extraction
+                  try again
                 </button>
               </Notice>
             </div>
@@ -363,31 +359,33 @@ export function ApplicationPanel({
           {tab === "details" && (
             <form onSubmit={save}>
               <div className="form-grid">
-                <Field label="Company">
+                <Field label="company">
                   <input
                     value={draft.company}
                     onChange={(e) => set("company", e.target.value)}
                   />
                 </Field>
-                <Field label="Job title">
+                <Field label="job title">
                   <input
                     value={draft.title}
                     onChange={(e) => set("title", e.target.value)}
                   />
                 </Field>
-                <Field label="Stage">
+                <Field label="stage">
                   <select
                     value={draft.stage}
                     onChange={(e) => set("stage", e.target.value)}
                   >
                     {stages.map((s) => (
-                      <option key={s}>{s}</option>
+                      <option key={s} value={s}>
+                        {s.toLowerCase()}
+                      </option>
                     ))}
                   </select>
                 </Field>
                 <Field
-                  label="Application date"
-                  hint={`Source: ${app.dateBasis}. Clear the date if unknown.`}
+                  label="date applied"
+                  hint={`from: ${app.dateBasis}. clear it if i don't know`}
                 >
                   <input
                     type="date"
@@ -395,98 +393,100 @@ export function ApplicationPanel({
                     onChange={(e) => set("appliedAt", e.target.value)}
                   />
                 </Field>
-                <Field label="Location">
+                <Field label="location">
                   <input
                     value={draft.location}
                     onChange={(e) => set("location", e.target.value)}
-                    placeholder="Unknown"
+                    placeholder="unknown"
                   />
                 </Field>
-                <Field label="Work arrangement">
+                <Field label="remote / hybrid / on-site">
                   <select
                     value={draft.workArrangement}
                     onChange={(e) => set("workArrangement", e.target.value)}
                   >
                     {["Unknown", "Remote", "Hybrid", "On-site"].map((s) => (
-                      <option key={s}>{s}</option>
+                      <option key={s} value={s}>
+                        {s.toLowerCase()}
+                      </option>
                     ))}
                   </select>
                 </Field>
-                <Field label="Compensation as posted" full>
+                <Field label="pay (as posted)" full>
                   <input
                     value={draft.salary}
                     onChange={(e) => set("salary", e.target.value)}
-                    placeholder="e.g. USD 140,000–175,000 per year (base)"
+                    placeholder="e.g. USD 140,000–175,000 / year base"
                   />
                 </Field>
-                <Field label="Currency">
+                <Field label="currency">
                   <input
                     value={draft.currency}
                     onChange={(e) => set("currency", e.target.value)}
                     placeholder="USD"
                   />
                 </Field>
-                <Field label="Compensation period">
+                <Field label="per">
                   <input
                     value={draft.salaryPeriod}
                     onChange={(e) => set("salaryPeriod", e.target.value)}
-                    placeholder="Year, hour…"
+                    placeholder="year, hour…"
                   />
                 </Field>
-                <Field label="Employment type">
+                <Field label="type">
                   <input
                     value={draft.employmentType}
                     onChange={(e) => set("employmentType", e.target.value)}
-                    placeholder="Full-time"
+                    placeholder="full-time"
                   />
                 </Field>
-                <Field label="Seniority">
+                <Field label="level">
                   <input
                     value={draft.seniority}
                     onChange={(e) => set("seniority", e.target.value)}
-                    placeholder="Not specified"
+                    placeholder="not listed"
                   />
                 </Field>
-                <Field label="Job / requisition ID">
+                <Field label="job / req id">
                   <input
                     value={draft.postingId}
                     onChange={(e) => set("postingId", e.target.value)}
                   />
                 </Field>
-                <Field label="Job link">
+                <Field label="job link">
                   <input
                     type="url"
                     value={draft.url}
                     onChange={(e) => set("url", e.target.value)}
                   />
                 </Field>
-                <Field label="Key responsibilities" full>
+                <Field label="responsibilities" full>
                   <textarea
                     rows={4}
                     value={draft.responsibilities}
                     onChange={(e) => set("responsibilities", e.target.value)}
-                    placeholder="Responsibilities will appear here after extraction."
+                    placeholder="fills in after extraction"
                   />
                 </Field>
-                <Field label="Requirements" full>
+                <Field label="requirements" full>
                   <textarea
                     rows={3}
                     value={draft.requirements}
                     onChange={(e) => set("requirements", e.target.value)}
                   />
                 </Field>
-                <Field label="Technologies" full>
+                <Field label="tech" full>
                   <input
                     value={draft.technologies}
                     onChange={(e) => set("technologies", e.target.value)}
                   />
                 </Field>
-                <Field label="Your notes" full>
+                <Field label="notes" full>
                   <textarea
                     rows={3}
                     value={draft.notes}
                     onChange={(e) => set("notes", e.target.value)}
-                    placeholder="Referral, recruiter contact, things to remember…"
+                    placeholder="referral, recruiter, whatever…"
                   />
                 </Field>
               </div>
@@ -496,11 +496,11 @@ export function ApplicationPanel({
                 </span>
                 <button className="button primary" disabled={busy}>
                   {busy ? (
-                    <Busy text="Saving…" />
+                    <Busy text="saving…" />
                   ) : (
                     <>
                       <Save size={15} />
-                      Save changes
+                      save
                     </>
                   )}
                 </button>
@@ -523,12 +523,12 @@ export function ApplicationPanel({
                           : timeText(event.occurredAt)}
                         <small>{event.timeBasis}</small>
                       </div>
-                      <h3>{event.label}</h3>
+                      <h3>{event.label.toLowerCase()}</h3>
                       {source && (
                         <>
                           <p className="muted">{source.subject}</p>
                           <details>
-                            <summary>View source evidence</summary>
+                            <summary>show the email</summary>
                             <pre className="source-text">{source.excerpt}</pre>
                             <a
                               href={`https://mail.google.com/mail/u/?authuser=${encodeURIComponent(source.account)}#all/${encodeURIComponent(source.messageId)}`}
@@ -536,14 +536,13 @@ export function ApplicationPanel({
                               rel="noreferrer"
                               className="text-button"
                             >
-                              Open in Gmail
+                              open in gmail
                               <ExternalLink size={13} />
                             </a>
                             <p className="small muted">
-                              Classification:{" "}
-                              {Math.round(event.confidence * 100)}% · match:{" "}
-                              {Math.round(event.matchConfidence * 100)}%
-                              (heuristic scores, not calibrated probabilities)
+                              classifier {Math.round(event.confidence * 100)}% ·
+                              match {Math.round(event.matchConfidence * 100)}%
+                              (rough scores, not real probabilities)
                             </p>
                           </details>
                         </>
@@ -552,8 +551,8 @@ export function ApplicationPanel({
                   );
                 })
               ) : (
-                <Empty title="A clean slate">
-                  Hiring updates and status changes will appear here.
+                <Empty title="nothing yet">
+                  emails and status changes show up here.
                 </Empty>
               )}
             </div>
@@ -561,7 +560,7 @@ export function ApplicationPanel({
           {tab === "description" && (
             <div className="panel-padding">
               <div className="snapshot-toolbar">
-                <h3>Preserved snapshots</h3>
+                <h3>saved descriptions</h3>
                 <button
                   className="button secondary"
                   disabled={busy || !app.url}
@@ -572,13 +571,13 @@ export function ApplicationPanel({
                   }
                 >
                   <RefreshCw size={15} />
-                  Refresh from link
+                  refetch from link
                 </button>
               </div>
               {detail.snapshots.length > 0 && (
                 <>
                   <label className="field">
-                    <span>Snapshot</span>
+                    <span>version</span>
                     <select
                       value={selectedSnapshot?.id || ""}
                       onChange={(e) => setSnapshot(e.target.value)}
@@ -587,8 +586,8 @@ export function ApplicationPanel({
                         <option value={s.id} key={s.id}>
                           {timeText(s.capturedAt)} ·{" "}
                           {s.sourceKind === "pasted"
-                            ? "Pasted text"
-                            : "Job posting"}
+                            ? "pasted"
+                            : "from the job page"}
                         </option>
                       ))}
                     </select>
@@ -599,15 +598,12 @@ export function ApplicationPanel({
                 </>
               )}
               <form onSubmit={saveSnapshot}>
-                <Field
-                  label="Save a new description"
-                  hint="Earlier snapshots are preserved."
-                >
+                <Field label="new description" hint="older ones are kept">
                   <textarea
                     rows={7}
                     value={draft.description}
                     onChange={(e) => set("description", e.target.value)}
-                    placeholder="Paste the full description here…"
+                    placeholder="paste the whole thing…"
                   />
                 </Field>
                 <button
@@ -615,7 +611,7 @@ export function ApplicationPanel({
                   disabled={busy || !draft.description.trim()}
                 >
                   <FileText size={15} />
-                  Save snapshot
+                  save description
                 </button>
               </form>
             </div>
@@ -629,7 +625,7 @@ export function ApplicationPanel({
               }}
             >
               <GitMerge size={15} />
-              Merge duplicate
+              merge duplicate
             </button>
             <button
               className="text-button danger"
@@ -639,40 +635,38 @@ export function ApplicationPanel({
               }}
             >
               <Trash2 size={15} />
-              Delete application
+              delete
             </button>
           </div>
           {merge && (
             <div className="confirmation">
-              <h3>Merge this record into another application</h3>
+              <h3>merge this into another application</h3>
               <p>
-                Keep the selected record’s status and existing details. Move
-                this record’s timeline, snapshots, actions, and email evidence
-                into it. Empty fields will be filled from this record. A
-                pre-merge backup is retained.
+                moves this one's timeline, descriptions, to-dos, and emails into
+                the one i pick, and fills in its empty fields. it keeps
+                whichever stage is further along (or the more recent one if
+                either is closed out). a backup is saved first so i can undo.
               </p>
               <select
-                aria-label="Merge target"
+                aria-label="merge into"
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
               >
-                <option value="">Choose the record to keep</option>
+                <option value="">pick the one to keep</option>
                 {state.applications
                   .filter((a) => a.id !== id)
                   .map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.company || "Unknown company"} — {a.title || "Untitled"}{" "}
-                      · {a.stage}
+                      {a.company || "unknown company"} — {a.title || "untitled"}{" "}
+                      · {a.stage.toLowerCase()}
                     </option>
                   ))}
               </select>
               {target && (
                 <p className="merge-preview">
-                  {app.company || "This record"} / {app.title || "Untitled"} →{" "}
+                  {app.company || "this one"} / {app.title || "untitled"} →{" "}
                   {state.applications.find((a) => a.id === target)?.company} /{" "}
-                  {state.applications.find((a) => a.id === target)?.title}. The
-                  destination’s status stays{" "}
-                  {state.applications.find((a) => a.id === target)?.stage}.
+                  {state.applications.find((a) => a.id === target)?.title}
                 </p>
               )}
               <button
@@ -690,22 +684,21 @@ export function ApplicationPanel({
                   }
                 }}
               >
-                Confirm merge
+                merge
               </button>
             </div>
           )}
           {confirmDelete && (
             <div className="confirmation">
-              <h3>Delete this application and its stored evidence?</h3>
+              <h3>delete this and everything attached to it?</h3>
               <p>
-                Its snapshots, timeline, and local email excerpts will be
-                removed. Gmail and your text file stay intact. Ordinary sync
-                will not recreate this record. Export a backup first if you want
-                to recover it.
+                removes its descriptions, timeline, and saved email bits. gmail
+                and the links file aren't touched, and sync won't bring it back.
+                grab a backup first if i might want it.
               </p>
               <div className="button-row">
                 <a className="button secondary" href="/api/backup" download>
-                  Download backup
+                  download backup
                 </a>
                 <button
                   disabled={busy}
@@ -722,7 +715,7 @@ export function ApplicationPanel({
                     }
                   }}
                 >
-                  Delete permanently
+                  delete for good
                 </button>
               </div>
             </div>
@@ -788,14 +781,10 @@ export function ReviewPanel({
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">A SECOND LOOK</div>
-          <h1>Make the right connections.</h1>
-          <p>
-            Confirm the event and role before an uncertain update changes your
-            search.
-          </p>
+          <h1>emails to sort</h1>
+          <p>ones it wasn't sure about. oldest first.</p>
         </div>
-        <span className="review-total">{pending.length} pending</span>
+        <span className="review-total">{pending.length} left</span>
       </div>
       {error && <Notice error>{error}</Notice>}
       {backfill.error && <Notice error>{backfill.error}</Notice>}
@@ -807,10 +796,10 @@ export function ReviewPanel({
           <div className="backfill-row">
             <span>
               {backfill.running
-                ? `Re-extracting ${backfill.processed} of ${backfill.total}${backfill.failed ? ` · ${backfill.failed} failed` : ""}`
+                ? `re-reading ${backfill.processed} of ${backfill.total}${backfill.failed ? ` · ${backfill.failed} failed` : ""}`
                 : state.settings.aiEnabled
-                  ? `Re-read every message already in Review with ${state.settings.aiModel}, filling in company, role, event type and dates.`
-                  : "Turn on AI extraction in Settings to re-read these messages automatically."}
+                  ? `have ${state.settings.aiModel} re-read all of these and fill in company, role, event, and dates`
+                  : "turn on ai extraction in settings to have these re-read automatically"}
             </span>
             <button
               className="button secondary"
@@ -829,8 +818,8 @@ export function ReviewPanel({
               }
             >
               {backfill.running
-                ? "Running…"
-                : `Run AI on all ${pending.length}`}
+                ? "running…"
+                : `run ai on all ${pending.length}`}
             </button>
           </div>
           {backfill.running && (
@@ -852,8 +841,8 @@ export function ReviewPanel({
         </div>
       )}
       {!sources.length ? (
-        <Empty title="You’re all caught up.">
-          Messages needing a second look will appear here after your next Gmail
+        <Empty title="all sorted">
+          anything it can't figure out on its own shows up here after a gmail
           sync.
         </Empty>
       ) : (
@@ -935,11 +924,11 @@ function ReviewItem({
           actionId,
           extraction: data,
         });
-        if (action === "dismiss") return onExit("Dismissed");
+        if (action === "dismiss") return onExit("dismissed");
         if (action === "attach") {
           const application = applications.find((a) => a.id === target);
           return onExit(
-            `Attached to ${application?.company || "Unknown company"} — ${application?.title || "Untitled"}`,
+            `attached to ${application?.company || "unknown company"} — ${application?.title || "untitled"}`,
           );
         }
       }
@@ -967,18 +956,18 @@ function ReviewItem({
             <span
               className={`pill ${source.state === "failed" ? "pill-error" : ""}`}
             >
-              {source.state === "failed" ? "Extraction failed" : "Needs review"}
+              {source.state === "failed" ? "extraction failed" : "needs a look"}
             </span>
           </div>
           <div className="review-content">
             <Notice error={source.state === "failed"}>{source.reason}</Notice>
             {error && <Notice error>{error}</Notice>}
             <details>
-              <summary>Read email excerpt</summary>
+              <summary>read the email</summary>
               <pre className="source-text">{source.excerpt}</pre>
             </details>
             <div className="form-grid compact">
-              <Field label="Event">
+              <Field label="what happened">
                 <select
                   value={data.eventType || ""}
                   onChange={(e) =>
@@ -989,7 +978,7 @@ function ReviewItem({
                     })
                   }
                 >
-                  <option value="">Choose an event</option>
+                  <option value="">pick one</option>
                   {eventTypes
                     .filter((t) => t !== "manual_status")
                     .map((t) => (
@@ -999,7 +988,7 @@ function ReviewItem({
                     ))}
                 </select>
               </Field>
-              <Field label="Match to application">
+              <Field label="which application">
                 <select
                   value={target}
                   onChange={(e) => {
@@ -1007,7 +996,7 @@ function ReviewItem({
                     setActionId("");
                   }}
                 >
-                  <option value="">Choose an existing application</option>
+                  <option value="">pick one</option>
                   {[...applications]
                     .sort(
                       (a, b) =>
@@ -1016,14 +1005,14 @@ function ReviewItem({
                     )
                     .map((a) => (
                       <option key={a.id} value={a.id}>
-                        {a.company || "Unknown company"} —{" "}
-                        {a.title || "Untitled"}
+                        {a.company || "unknown company"} —{" "}
+                        {a.title || "untitled"}
                         {source.candidates.includes(a.id) ? " (suggested)" : ""}
                       </option>
                     ))}
                 </select>
               </Field>
-              <Field label="Company (for a new record)">
+              <Field label="company (if it's new)">
                 <input
                   value={data.company}
                   onChange={(e) =>
@@ -1031,13 +1020,13 @@ function ReviewItem({
                   }
                 />
               </Field>
-              <Field label="Title (for a new record)">
+              <Field label="title (if it's new)">
                 <input
                   value={data.title}
                   onChange={(e) => setData({ ...data, title: e.target.value })}
                 />
               </Field>
-              <Field label="Job / requisition ID">
+              <Field label="job / req id">
                 <input
                   value={data.postingId}
                   onChange={(e) =>
@@ -1045,42 +1034,42 @@ function ReviewItem({
                   }
                 />
               </Field>
-              <Field label="Job link">
+              <Field label="job link">
                 <input
                   type="url"
                   value={data.url}
                   onChange={(e) => setData({ ...data, url: e.target.value })}
                 />
               </Field>
-              <Field label="Deadline / scheduled time">
+              <Field label="deadline / time">
                 <input
                   value={data.dueAt}
                   onChange={(e) => setData({ ...data, dueAt: e.target.value })}
-                  placeholder="Leave blank if unknown"
+                  placeholder="blank if unknown"
                 />
               </Field>
-              <Field label="Time zone">
+              <Field label="time zone">
                 <input
                   value={data.timeZone}
                   onChange={(e) =>
                     setData({ ...data, timeZone: e.target.value })
                   }
-                  placeholder="Confirm from the message"
+                  placeholder="check the email"
                 />
               </Field>
               {["interview_rescheduled", "interview_canceled"].includes(
                 data.eventType || "",
               ) &&
                 actions.length > 1 && (
-                  <Field label="Affected interview" full>
+                  <Field label="which interview" full>
                     <select
                       value={actionId}
                       onChange={(e) => setActionId(e.target.value)}
                     >
-                      <option value="">Choose the affected interview</option>
+                      <option value="">pick one</option>
                       {actions.map((a) => (
                         <option key={a.id} value={a.id}>
-                          {a.title} · {a.dueAt || "Date unknown"}
+                          {a.title} · {a.dueAt || "no date"}
                         </option>
                       ))}
                     </select>
@@ -1090,12 +1079,12 @@ function ReviewItem({
             {target && (
               <div className="inline-help">
                 <button className="text-button" onClick={() => open(target)}>
-                  Inspect selected application
+                  open it
                   <ExternalLink size={13} />
                 </button>
                 <span>
-                  Closed statuses and manual corrections are preserved. Reopen a
-                  role in its details if needed.
+                  won't override a closed stage or anything i set by hand.
+                  reopen it in details if needed.
                 </span>
               </div>
             )}
@@ -1105,7 +1094,7 @@ function ReviewItem({
                 disabled={busy}
                 onClick={() => void decide("dismiss")}
               >
-                Dismiss unrelated email
+                not a job email
               </button>
               <div className="button-row">
                 {source.state === "failed" && (
@@ -1115,7 +1104,7 @@ function ReviewItem({
                     onClick={() => void decide("retry")}
                   >
                     <RefreshCw size={14} />
-                    Retry extraction
+                    try again
                   </button>
                 )}
                 <button
@@ -1128,9 +1117,7 @@ function ReviewItem({
                   }
                   onClick={() => void decide("create")}
                 >
-                  {createdApplication
-                    ? "Application created"
-                    : "Create new application"}
+                  {createdApplication ? "created" : "new application"}
                 </button>
                 <button
                   className="button primary"
@@ -1142,7 +1129,7 @@ function ReviewItem({
                   ) : (
                     <>
                       <Check size={15} />
-                      Attach event
+                      attach it
                     </>
                   )}
                 </button>
@@ -1211,17 +1198,15 @@ export function SettingsPanel({
       },
       (saved) =>
         saved.resyncing
-          ? "Settings saved. Re-checking Review against the new search…"
-          : "Settings saved.",
+          ? "saved. re-checking emails to sort against the new search…"
+          : "saved",
     );
   }
   return (
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">YOUR WORKSPACE, YOUR RULES</div>
-          <h1>A few things to connect.</h1>
-          <p>Configure this instance with your own accounts and keys.</p>
+          <h1>settings</h1>
         </div>
       </div>
       {error && <Notice error>{error}</Notice>}
@@ -1231,18 +1216,18 @@ export function SettingsPanel({
           <div className="settings-title">
             <FileText size={21} />
             <div>
-              <h2>Application text file</h2>
-              <p>Add a link after applying. We’ll take it from there.</p>
+              <h2>links file</h2>
+              <p>paste a link in after applying and it picks it up</p>
             </div>
           </div>
           <Field
-            label="Absolute path to your text file"
-            hint="Create the file yourself, then choose it or paste its full path. Scanned every 2 seconds while Fieldwork is running."
+            label="full path to the file"
+            hint="make the file first, then pick it or paste the path. checked every 2 seconds while the app is open."
           >
             <input
               value={settings.linksFile}
               onChange={(e) => change("linksFile", e.target.value)}
-              placeholder="/Users/you/Documents/applications.txt"
+              placeholder="/Users/me/Documents/applications.txt"
             />
           </Field>
           {window.fieldworkDesktop && (
@@ -1257,30 +1242,30 @@ export function SettingsPanel({
                 })
               }
             >
-              Choose text file…
+              pick file…
             </button>
           )}
           <pre className="code-example">
             {
-              "# One application per line\nhttps://company.com/careers/software-engineer\n2026-09-20 | https://another-company.com/jobs/123"
+              "# one per line\nhttps://company.com/careers/software-engineer\n2026-09-20 | https://another-company.com/jobs/123"
             }
           </pre>
           <p className="small muted">
-            A bare link means applied today. Historical entries need a date.
-            Removing a line does not delete its record.
+            just a link = applied today. older ones need a date. deleting a line
+            doesn't delete the application.
           </p>
           <div className="connection-line">
-            <span>Last scan: {timeText(state.sync.fileLastScan)}</span>
+            <span>last checked: {timeText(state.sync.fileLastScan)}</span>
             <button
               type="button"
               className="button secondary"
               disabled={busy}
               onClick={() =>
-                void run(() => api("/import/scan", "POST", {}), "File scanned.")
+                void run(() => api("/import/scan", "POST", {}), "checked")
               }
             >
               <RefreshCw size={14} />
-              Scan saved path
+              check now
             </button>
           </div>
           {state.sync.fileErrors.map((e, i) => (
@@ -1293,22 +1278,22 @@ export function SettingsPanel({
           <div className="settings-title">
             <Mail size={21} />
             <div>
-              <h2>Gmail</h2>
-              <p>Read hiring updates without changing your mailbox.</p>
+              <h2>gmail</h2>
+              <p>read-only, doesn't change anything in the inbox</p>
             </div>
             <span
               className={`connection-pill ${state.connection.connected ? "connected" : ""}`}
             >
-              {state.connection.connected ? "Connected" : "Not connected"}
+              {state.connection.connected ? "connected" : "not connected"}
             </span>
           </div>
           <div className="form-grid compact">
             <Field
-              label="Google Desktop OAuth client ID"
+              label="google oauth client id (desktop)"
               hint={
                 state.connection.googleConfigured
-                  ? "Configured. Leave blank to keep the saved value."
-                  : "Create your own client in Google Cloud."
+                  ? "saved. leave blank to keep it"
+                  : "make one in google cloud"
               }
             >
               <input
@@ -1320,7 +1305,7 @@ export function SettingsPanel({
                 placeholder="…apps.googleusercontent.com"
               />
             </Field>
-            <Field label="Google OAuth client secret">
+            <Field label="google oauth client secret">
               <input
                 type="password"
                 value={secrets.googleClientSecret}
@@ -1328,10 +1313,10 @@ export function SettingsPanel({
                   setSecrets({ ...secrets, googleClientSecret: e.target.value })
                 }
                 autoComplete="new-password"
-                placeholder="Leave blank to keep saved secret"
+                placeholder="blank = keep the saved one"
               />
             </Field>
-            <Field label="Import emails since">
+            <Field label="pull emails since">
               <input
                 type="date"
                 required
@@ -1339,7 +1324,7 @@ export function SettingsPanel({
                 onChange={(e) => change("importAfter", e.target.value)}
               />
             </Field>
-            <Field label="Sync interval (minutes)">
+            <Field label="sync every (minutes)">
               <input
                 type="number"
                 min="1"
@@ -1349,9 +1334,9 @@ export function SettingsPanel({
               />
             </Field>
             <Field
-              label="Candidate email search"
+              label="gmail search"
               full
-              hint="Gmail search syntax. Archived mail is included; spam and trash are excluded. Changing it re-checks Review on save and dismisses messages that no longer match."
+              hint="normal gmail search syntax. includes archived, skips spam/trash. changing it re-checks emails to sort and drops ones that don't match anymore."
             >
               <textarea
                 rows={2}
@@ -1376,45 +1361,40 @@ export function SettingsPanel({
                       full: true,
                       prune: true,
                     });
-                  }, "Re-checking Review against this search…")
+                  }, "re-checking against this search…")
                 }
               >
-                Save and re-check Review now
+                save + re-check now
               </button>
             </Field>
           </div>
           <details className="setup-guide">
-            <summary>How to connect your own Gmail</summary>
+            <summary>how to set up gmail</summary>
             <ol>
               <li>
-                Create a project in{" "}
+                make a project in{" "}
                 <a
                   href="https://console.cloud.google.com/"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Google Cloud
+                  google cloud
                 </a>{" "}
-                and enable the Gmail API.
+                and turn on the gmail api.
               </li>
               <li>
-                Configure the OAuth consent screen for personal testing. Add
-                your Gmail address as a test user and request the{" "}
-                <code>gmail.readonly</code> scope.
+                set up the oauth consent screen in testing mode, add my gmail as
+                a test user, and add the <code>gmail.readonly</code> scope.
               </li>
               <li>
-                Create an OAuth client of type <strong>Desktop app</strong>.
-                Enter its client ID and secret above and save settings.
+                make an oauth client of type <strong>desktop app</strong>, paste
+                the id and secret above, and save.
               </li>
-              <li>
-                Click Connect Gmail and authorize in your normal browser. Each
-                friend configures their own project and account.
-              </li>
+              <li>hit connect gmail and sign in in the browser.</li>
             </ol>
             <p>
-              Gmail read-only permission covers the mailbox; the application
-              filters hiring messages. Testing-mode authorization commonly
-              expires after seven days, so you may need to reconnect.
+              testing-mode sign-ins expire after about a week, so reconnect if
+              sync starts failing.
             </p>
             <p>
               <a
@@ -1422,14 +1402,13 @@ export function SettingsPanel({
                 target="_blank"
                 rel="noreferrer"
               >
-                Google’s Desktop OAuth guide
+                google's desktop oauth docs
               </a>
             </p>
           </details>
           <div className="connection-line">
             <span>
-              {state.connection.account ||
-                "Save credentials before connecting."}
+              {state.connection.account || "save the client id/secret first"}
             </span>
             <div className="button-row">
               <button
@@ -1452,8 +1431,8 @@ export function SettingsPanel({
                 }
               >
                 {state.connection.connected
-                  ? "Reconnect Gmail"
-                  : "Connect Gmail"}
+                  ? "reconnect gmail"
+                  : "connect gmail"}
                 <ArrowUpRight size={14} />
               </button>
               {state.connection.connected && (
@@ -1464,12 +1443,12 @@ export function SettingsPanel({
                   onClick={() =>
                     void run(
                       () => api("/gmail/disconnect", "POST", {}),
-                      "Gmail disconnected. Your tracked applications are preserved.",
+                      "disconnected gmail. applications are still here.",
                     )
                   }
                 >
                   <Unplug size={14} />
-                  Disconnect
+                  disconnect
                 </button>
               )}
             </div>
@@ -1477,8 +1456,8 @@ export function SettingsPanel({
           <div className="connection-line">
             <span>
               {state.sync.running
-                ? `${state.sync.processed} / ${state.sync.discovered} messages checked`
-                : `Last successful sync: ${timeText(state.sync.lastSuccess)}`}
+                ? `checked ${state.sync.processed} / ${state.sync.discovered} emails`
+                : `last synced: ${timeText(state.sync.lastSuccess)}`}
             </span>
             <button
               className="text-button"
@@ -1489,11 +1468,11 @@ export function SettingsPanel({
               onClick={() =>
                 void run(
                   () => api("/gmail/sync", "POST", { full: true }),
-                  "Historical sync started. Previously processed messages will not be duplicated.",
+                  "rescanning. won't duplicate anything already pulled in.",
                 )
               }
             >
-              Rescan saved date range
+              rescan everything since the start date
             </button>
           </div>
           {state.sync.error && <Notice error>{state.sync.error}</Notice>}
@@ -1502,21 +1481,21 @@ export function SettingsPanel({
           <div className="settings-title">
             <Settings2 size={21} />
             <div>
-              <h2>AI extraction</h2>
+              <h2>ai extraction</h2>
               <p>
-                Reads each hiring email and job page to pull out the company,
-                role, event type and dates, so fewer messages need a manual
-                second look. Without it, Fieldwork falls back to keyword rules.
+                reads emails and job pages to pull out company, role, what
+                happened, and dates so fewer need sorting by hand. off = keyword
+                rules only.
               </p>
             </div>
             <span
               className={`connection-pill ${usingClaudeCode || state.connection.aiConfigured ? "connected" : ""}`}
             >
               {usingClaudeCode
-                ? "Claude Code"
+                ? "claude code"
                 : state.connection.aiConfigured
-                  ? "Key configured"
-                  : "No key"}
+                  ? "key saved"
+                  : "no key"}
             </span>
           </div>
           <label className="check-label consent">
@@ -1526,19 +1505,18 @@ export function SettingsPanel({
               onChange={(e) => change("aiEnabled", e.target.checked)}
             />
             <span>
-              Enable AI extraction
+              use ai extraction
               <small>
-                I allow relevant hiring-email excerpts, subjects, dates, and job
-                descriptions to be sent to my configured provider. Full mailbox
-                contents and attachments are not sent.
+                sends job-email snippets, subjects, dates, and job descriptions
+                to the provider below. not the whole inbox, no attachments.
               </small>
             </span>
           </label>
           <div className="form-grid compact">
             <Field
-              label="Provider"
+              label="provider"
               full
-              hint="Claude Code runs your locally installed, already signed-in CLI. Nothing leaves this machine except what the CLI sends, and no API key is billed."
+              hint="claude code uses the cli i already have signed in. no api key, nothing billed separately."
             >
               <select
                 value={settings.aiProvider}
@@ -1554,17 +1532,17 @@ export function SettingsPanel({
                   });
                 }}
               >
-                <option value="claude-code">Claude Code (local CLI)</option>
-                <option value="openai">OpenAI-compatible API key</option>
+                <option value="claude-code">claude code (local cli)</option>
+                <option value="openai">openai-compatible api key</option>
               </select>
             </Field>
             {!usingClaudeCode && (
               <Field
-                label="API key"
+                label="api key"
                 hint={
                   state.connection.aiConfigured
-                    ? "Leave blank to keep the saved key."
-                    : "You are billed directly by your provider."
+                    ? "blank = keep the saved key"
+                    : "billed by the provider"
                 }
               >
                 <input
@@ -1574,15 +1552,15 @@ export function SettingsPanel({
                   onChange={(e) =>
                     setSecrets({ ...secrets, aiKey: e.target.value })
                   }
-                  placeholder="Your personal API key"
+                  placeholder="api key"
                 />
               </Field>
             )}
             <Field
-              label="Model"
+              label="model"
               hint={
                 usingClaudeCode
-                  ? "A small model keeps each extraction inside your subscription's usage window."
+                  ? "a small model keeps this from eating the subscription limit"
                   : undefined
               }
             >
@@ -1594,21 +1572,21 @@ export function SettingsPanel({
             </Field>
             {usingClaudeCode ? (
               <Field
-                label="Claude Code path (optional)"
+                label="claude path (optional)"
                 full
-                hint="Leave blank to find `claude` on your PATH. A packaged app launched from Finder often has a minimal PATH, so set the absolute path if extraction reports the CLI is missing."
+                hint="blank = look for `claude` on PATH. the app opened from finder barely has a PATH, so set the full path if it says claude isn't found."
               >
                 <input
                   value={settings.claudeCodePath}
                   onChange={(e) => change("claudeCodePath", e.target.value)}
-                  placeholder="/Users/you/.local/bin/claude"
+                  placeholder="/Users/me/.local/bin/claude"
                 />
               </Field>
             ) : (
               <Field
-                label="OpenAI-compatible HTTPS API base URL"
+                label="api base url (https)"
                 full
-                hint="Default: OpenAI. Changing this destination changes who receives your extraction data."
+                hint="defaults to openai. whatever's here is who gets the email snippets."
               >
                 <input
                   type="url"
@@ -1626,39 +1604,36 @@ export function SettingsPanel({
               onChange={(e) => change("autoApplyAI", e.target.checked)}
             />
             <span>
-              Allow automatic AI updates for strong role matches
+              let ai update applications on its own when it's confident
               <small>
-                Off by default. AI confidence scores are not calibrated on your
-                emails. With this off, AI results go to Review; explicit
-                rule-based events may still attach to exact role or unique
-                thread matches.
+                off by default since ai confidence is kind of made up. when off,
+                ai results go to emails to sort; obvious keyword matches can
+                still attach on their own.
               </small>
             </span>
           </label>
           {state.connection.aiUsage && (
             <p className="small muted">
-              Last extraction: {timeText(state.connection.aiUsage.at)} ·{" "}
+              last run: {timeText(state.connection.aiUsage.at)} ·{" "}
               {state.connection.aiUsage.model} ·{" "}
-              {state.connection.aiUsage.tokens ?? "Unknown"} tokens
+              {state.connection.aiUsage.tokens ?? "?"} tokens
             </p>
           )}
           <p className="small muted">
             {window.fieldworkDesktop
-              ? "Keys and tokens are encrypted locally with an encryption key protected by macOS Keychain. Keys are excluded from exports."
-              : "Keys are stored encrypted in this instance’s private data directory. The local encryption key is on the same computer; protect your OS account and disk. Keys are excluded from exports."}
+              ? "keys are encrypted with a key kept in the macos keychain, and never exported"
+              : "keys are encrypted in the data folder, but the encryption key is on the same machine. never exported."}
           </p>
         </section>
         <div className="settings-save">
-          <span className="muted small">
-            Settings apply only to this computer.
-          </span>
+          <span className="muted small">just for this computer</span>
           <button className="button primary" disabled={busy}>
             {busy ? (
-              <Busy text="Saving…" />
+              <Busy text="saving…" />
             ) : (
               <>
                 <Save size={16} />
-                Save settings
+                save
               </>
             )}
           </button>
@@ -1669,26 +1644,23 @@ export function SettingsPanel({
         <div className="settings-title">
           <ShieldCheck size={21} />
           <div>
-            <h2>Take your data with you</h2>
-            <p>
-              Backups contain application history and relevant evidence, but no
-              credentials.
-            </p>
+            <h2>backups</h2>
+            <p>has all the applications and emails, no passwords or keys</p>
           </div>
         </div>
         <div className="button-row">
           <a className="button secondary" href="/api/export.csv" download>
             <ArrowDownToLine size={15} />
-            Export CSV
+            export csv
           </a>
           <a className="button secondary" href="/api/backup" download>
             <ArrowDownToLine size={15} />
-            Download full backup
+            download backup
           </a>
           {state.canUndoMerge && (
             <>
               <a className="button secondary" href="/api/merge/backup" download>
-                Pre-merge backup
+                backup from before the merge
               </a>
               <button
                 className="button secondary"
@@ -1696,19 +1668,19 @@ export function SettingsPanel({
                 onClick={() =>
                   void run(
                     () => api("/merge/undo", "POST", {}),
-                    "Merge undone.",
+                    "undid the merge",
                   )
                 }
               >
-                Undo last merge
+                undo last merge
               </button>
             </>
           )}
         </div>
         <div className="restore-area">
           <Field
-            label="Restore a backup into an empty instance"
-            hint="Requires no applications or stored messages. Start with a fresh TRACKER_DATA_DIR to recover separately."
+            label="restore a backup (only into an empty app)"
+            hint="only works with no applications or emails yet. point TRACKER_DATA_DIR at a new folder to restore on the side."
           >
             <input
               type="file"
@@ -1720,11 +1692,11 @@ export function SettingsPanel({
                   const file = e.target.files?.[0];
                   if (file) {
                     if (file.size > 20_000_000)
-                      throw new Error("Backup is too large (20 MB maximum).");
+                      throw new Error("backup is too big (20 MB max)");
                     setBackup(JSON.parse(await file.text()));
                   }
                 } catch {
-                  setError("Choose a valid JSON backup smaller than 20 MB.");
+                  setError("pick a backup .json under 20 MB");
                 }
               }}
             />
@@ -1736,10 +1708,10 @@ export function SettingsPanel({
               void run(async () => {
                 await api("/restore", "POST", backup);
                 setBackup(undefined);
-              }, "Backup restored. Reconnect accounts separately.")
+              }, "restored. reconnect gmail/ai separately.")
             }
           >
-            Restore selected backup
+            restore
           </button>
         </div>
       </section>
