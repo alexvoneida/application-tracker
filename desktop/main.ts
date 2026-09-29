@@ -19,6 +19,7 @@ import {
   type NativeNotificationPermission,
 } from "./notification-permission";
 import { startServer } from "../server/runtime";
+import { stopClaudeCode } from "../server/claude-code";
 import { desktopVault } from "./credentials";
 import {
   isExternalLink,
@@ -415,10 +416,16 @@ app.on("before-quit", (event) => {
       }) ?? Promise.resolve(),
       shutdownMilliseconds,
     );
-    if (!drained)
+    if (!drained) {
+      // exit() rather than quit(): the killed extraction's rejection handlers
+      // must not run and record "failed" results while the store shuts down.
+      stopClaudeCode();
       console.error(
         `Fieldwork quit before pending work finished (waited ${shutdownMilliseconds / 1000}s).`,
       );
+      app.exit(0);
+      return;
+    }
     quitComplete = true;
     app.quit();
   })();

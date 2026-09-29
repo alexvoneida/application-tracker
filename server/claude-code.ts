@@ -1,8 +1,13 @@
-import { execFile, type ExecFileException } from "node:child_process";
+import {
+  execFile,
+  type ChildProcess,
+  type ExecFileException,
+} from "node:child_process";
 import { dirname } from "node:path";
 import { discover } from "switchboard-ai-sdk";
 
 let pathedBinary = "";
+const running = new Set<ChildProcess>();
 
 // The CLI is spawned by name, inheriting this process's PATH. A packaged macOS
 // app launched from Finder gets a minimal PATH that omits the usual install
@@ -18,6 +23,11 @@ function ensureOnPath(binary: string) {
 
 export function resetClaudeCode() {
   pathedBinary = "";
+}
+
+// Children outlive a force-quit parent, so shutdown ends them explicitly.
+export function stopClaudeCode() {
+  for (const child of running) child.kill();
 }
 
 export async function claudeCodeStatus(binary: string) {
@@ -60,15 +70,17 @@ export async function claudeCodeExtract(
 ): Promise<unknown> {
   ensureOnPath(binary);
   const stdout = await new Promise<string>((resolve, reject) => {
-    execFile(
+    const child = execFile(
       binary || "claude",
       args(system, content, model),
       { encoding: "utf8", timeout: timeoutMs, maxBuffer: 10_000_000 },
       (error, out, stderr) => {
+        running.delete(child);
         if (!error) return resolve(out);
         reject(new Error(spawnMessage(error, stderr)));
       },
     );
+    running.add(child);
   });
   return parseJsonObject(resultText(stdout));
 }

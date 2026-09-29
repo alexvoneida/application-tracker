@@ -29,7 +29,13 @@ import {
   Extractor,
 } from "../server/extraction.ts";
 import { messageText, Gmail } from "../server/gmail.ts";
-import { parseJsonObject, resultText } from "../server/claude-code.ts";
+import {
+  claudeCodeExtract,
+  parseJsonObject,
+  resetClaudeCode,
+  resultText,
+  stopClaudeCode,
+} from "../server/claude-code.ts";
 import {
   dateSchema,
   emailSchema,
@@ -992,4 +998,22 @@ test("pasted text is preserved exactly once when AI enrichment fails", async (t)
   await tracker.idle();
   assert.equal(store.all("snapshots").length, 1);
   assert.equal(store.all("snapshots")[0].sourceKind, "pasted");
+});
+
+test("stopping Claude Code ends a running extraction immediately", async (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "fieldwork-claude-"));
+  const path = process.env.PATH;
+  t.after(() => {
+    process.env.PATH = path;
+    resetClaudeCode();
+    rmSync(directory, { recursive: true, force: true });
+  });
+  const binary = join(directory, "claude");
+  writeFileSync(binary, "#!/bin/sh\nexec sleep 30\n", { mode: 0o755 });
+  const started = Date.now();
+  const running = claudeCodeExtract("system", "content", "model", binary);
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  stopClaudeCode();
+  await assert.rejects(running);
+  assert.ok(Date.now() - started < 5000);
 });
