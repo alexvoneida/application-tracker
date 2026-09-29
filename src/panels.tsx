@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   ArrowDownToLine,
   ArrowUpRight,
@@ -160,6 +160,17 @@ export function AddApplication({
   );
 }
 
+function keepUnsavedEdits(
+  draft: Draft,
+  previous: Application,
+  next: Application,
+): Draft {
+  const saved = applicationInput.parse(previous);
+  const fresh = applicationInput.parse(next);
+  for (const key of Object.keys(draft) as (keyof Draft)[])
+    if (draft[key] !== saved[key]) (fresh as any)[key] = draft[key];
+  return fresh;
+}
 export function ApplicationPanel({
   id,
   state,
@@ -173,6 +184,8 @@ export function ApplicationPanel({
 }) {
   const [detail, setDetail] = useState<Detail>();
   const [draft, setDraft] = useState<Draft>();
+  // Latest server copy, read after awaits where the render's `detail` is stale.
+  const serverCopy = useRef<Application | undefined>(undefined);
   const [tab, setTab] = useState<"details" | "timeline" | "description">(
     "details",
   );
@@ -183,10 +196,16 @@ export function ApplicationPanel({
   const [merge, setMerge] = useState(false);
   const [target, setTarget] = useState("");
   const [snapshot, setSnapshot] = useState("");
-  async function load() {
+  async function load(keepEdits = false) {
     const data = await api<Detail>(`/applications/${id}`);
+    const baseline = serverCopy.current;
+    serverCopy.current = data.application;
     setDetail(data);
-    setDraft(applicationInput.parse(data.application));
+    setDraft((current) =>
+      keepEdits && current && baseline
+        ? keepUnsavedEdits(current, baseline, data.application)
+        : applicationInput.parse(data.application),
+    );
   }
   useEffect(() => {
     void load().catch((e) => setError(e.message));
@@ -197,28 +216,29 @@ export function ApplicationPanel({
     const timer = setInterval(() => {
       void api<Detail>(`/applications/${id}`)
         .then((next) => {
+          serverCopy.current = next.application;
           setDetail(next);
-          setDraft((current) => {
-            if (!current) return applicationInput.parse(next.application);
-            const previous = applicationInput.parse(detail.application);
-            const fresh = applicationInput.parse(next.application);
-            for (const key of Object.keys(current) as (keyof Draft)[])
-              if (current[key] !== previous[key])
-                (fresh as any)[key] = current[key];
-            return fresh;
-          });
+          setDraft((current) =>
+            current
+              ? keepUnsavedEdits(current, detail.application, next.application)
+              : applicationInput.parse(next.application),
+          );
         })
         .catch(() => {});
     }, 2000);
     return () => clearInterval(timer);
   }, [detail, id]);
-  async function action(fn: () => Promise<unknown>, message = "") {
+  async function action(
+    fn: () => Promise<unknown>,
+    message = "",
+    keepEdits = true,
+  ) {
     setBusy(true);
     setError("");
     try {
       await fn();
       await changed();
-      await load();
+      await load(keepEdits);
       setMessage(message);
     } catch (e) {
       setError((e as Error).message);
@@ -238,6 +258,7 @@ export function ApplicationPanel({
     await action(
       () => api(`/applications/${id}`, "PATCH", patch),
       "Changes saved. Your edits take priority over future extraction.",
+      false,
     );
   }
   const set = (key: keyof Draft, value: string) =>

@@ -551,3 +551,40 @@ test("dragging a text selection out of a dialog keeps it open", async ({
   await page.mouse.click(3, 3);
   await expect(dialog).toBeHidden();
 });
+
+test("refreshing an application from its link keeps unsaved edits", async ({
+  page,
+}) => {
+  const initial = await (await page.request.get("/api/state")).json();
+  await page.request.post("/api/applications", {
+    headers: { "X-Tracker-Token": initial.csrf },
+    data: {
+      company: "Unsaved edit fixture",
+      title: "Platform Engineer",
+      url: "https://example.com/jobs/unsaved-edit",
+      stage: "Applied",
+    },
+  });
+  await page.route("**/api/applications/*/enrich", (route) =>
+    route.fulfill({ json: { ok: true } }),
+  );
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: /Unsaved edit fixture/ })
+    .first()
+    .click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Location", { exact: true }).fill("Boulder, CO");
+  await dialog.getByRole("tab", { name: "Saved description" }).click();
+  const reloaded = page.waitForResponse(
+    (r) =>
+      r.request().method() === "GET" &&
+      /^\/api\/applications\/[^/]+$/.test(new URL(r.url()).pathname),
+  );
+  await dialog.getByRole("button", { name: "Refresh from link" }).click();
+  await reloaded;
+  await dialog.getByRole("tab", { name: "Role details" }).click();
+  await expect(dialog.getByLabel("Location", { exact: true })).toHaveValue(
+    "Boulder, CO",
+  );
+});
