@@ -963,7 +963,16 @@ function ActionCard({
           <Check size={15} />
           Complete
         </button>
-        <button className="text-button" onClick={() => setEditing(!editing)}>
+        <button
+          className="text-button"
+          onClick={() => {
+            if (!editing) {
+              setDue(action.dueAt);
+              setZone(action.timeZone);
+            }
+            setEditing(!editing);
+          }}
+        >
           Edit date
         </button>
         <button

@@ -588,3 +588,54 @@ test("refreshing an application from its link keeps unsaved edits", async ({
     "Boulder, CO",
   );
 });
+
+test("editing an action date starts from its current value", async ({
+  page,
+}) => {
+  const initial = await (await page.request.get("/api/state")).json();
+  const application = await (
+    await page.request.post("/api/applications", {
+      headers: { "X-Tracker-Token": initial.csrf },
+      data: {
+        company: "Reschedule fixture",
+        title: "Engineer",
+        stage: "Unknown",
+      },
+    })
+  ).json();
+  const store = new Store(process.env.TRACKER_E2E_DIR!);
+  const action = {
+    id: "fixture:reschedule",
+    applicationId: application.id,
+    sourceId: "",
+    kind: "interview" as const,
+    title: "Reschedule fixture interview",
+    dueAt: "2026-10-01 14:00",
+    timeZone: "America/Denver",
+    status: "pending" as const,
+    createdAt: new Date().toISOString(),
+  };
+  store.put("actions", action);
+  store.close();
+  await page.goto("/");
+  await page.getByRole("button", { name: "Next actions", exact: true }).click();
+  const card = page.locator(".action-card").filter({
+    has: page.getByRole("heading", { name: "Reschedule fixture interview" }),
+  });
+  await expect(
+    card.getByText("2026-10-01 14:00 · America/Denver"),
+  ).toBeVisible();
+  const patched = await page.request.patch(`/api/actions/${action.id}`, {
+    headers: { "X-Tracker-Token": initial.csrf },
+    data: { dueAt: "2026-10-08 09:30" },
+  });
+  expect(patched.ok()).toBe(true);
+  // Wait for the app's 5-second state poll to deliver the server-side change.
+  await expect(card.getByText("2026-10-08 09:30 · America/Denver")).toBeVisible(
+    { timeout: 10000 },
+  );
+  await card.getByRole("button", { name: "Edit date" }).click();
+  await expect(card.getByLabel("Date / time", { exact: true })).toHaveValue(
+    "2026-10-08 09:30",
+  );
+});
