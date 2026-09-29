@@ -155,9 +155,12 @@ export function DiscoverPanel({
           disabled={busy}
           onClick={() =>
             void run(async () => {
-              const next = { ...config, enabled: !state.config.enabled };
-              await api("/discovery/settings", "POST", next);
-              setConfig(next);
+              const enabled = !state.config.enabled;
+              await api("/discovery/settings", "POST", {
+                ...state.config,
+                enabled,
+              });
+              setConfig((current) => current && { ...current, enabled });
             })
           }
         >

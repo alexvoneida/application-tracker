@@ -639,3 +639,33 @@ test("editing an action date starts from its current value", async ({
     "2026-10-08 09:30",
   );
 });
+
+test("pausing monitoring does not save unsaved search preferences", async ({
+  page,
+}) => {
+  const saved = await (await page.request.get("/api/discovery")).json();
+  const posted: any[] = [];
+  await page.route("**/api/discovery/settings", async (route) => {
+    posted.push(route.request().postDataJSON());
+    await route.fulfill({ json: { ok: true } });
+  });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Discover jobs", exact: true })
+    .click();
+  await page.getByText("Search preferences & alerts").click();
+  await page
+    .getByLabel("Excluded keywords", { exact: true })
+    .fill("unsaved draft keyword");
+  await page
+    .getByRole("button", {
+      name: saved.config.enabled ? "Pause monitoring" : "Start monitoring",
+    })
+    .click();
+  await expect.poll(() => posted.length).toBe(1);
+  expect(posted[0].excludeKeywords).toBe(saved.config.excludeKeywords);
+  expect(posted[0].enabled).toBe(!saved.config.enabled);
+  await expect(
+    page.getByLabel("Excluded keywords", { exact: true }),
+  ).toHaveValue("unsaved draft keyword");
+});
