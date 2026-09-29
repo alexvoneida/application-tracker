@@ -16,6 +16,7 @@ import {
   fetchSource,
   FeedError,
   githubFeed,
+  unknownExperience,
 } from "./discovery-providers";
 
 const terms = (value: string) =>
@@ -38,7 +39,7 @@ export function matchDiscovery(
     reasons.push("Experience requirement exceeds your limit");
   if (
     job.requiredYears === null &&
-    job.entryEvidence === "Experience not established" &&
+    job.entryEvidence === unknownExperience &&
     !config.includeUnknownExperience
   )
     reasons.push("Experience requirement unknown");
@@ -81,6 +82,26 @@ export type DiscoveryNotify = (jobs: DiscoveredJob[]) => void | Promise<void>;
 // Runs inside the checkpoint transaction, so it must be synchronous.
 export type DiscoveryOutbox = (jobs: DiscoveredJob[]) => void;
 
+export function mergeDiscoveredJob(
+  old: DiscoveredJob | undefined,
+  candidate: DiscoveryCandidate,
+  fromGithub: boolean,
+) {
+  // GitHub metadata must not erase richer fields learned directly.
+  if (!old) return candidate;
+  const [preferred, fallback] = fromGithub
+    ? [{ ...candidate, ...old }, candidate]
+    : [{ ...old, ...candidate }, old];
+  // Whichever side says nothing about experience defers to the side that does.
+  if (
+    preferred.requiredYears === null &&
+    preferred.entryEvidence === unknownExperience
+  ) {
+    preferred.entryEvidence = fallback.entryEvidence;
+    preferred.requiredYears = fallback.requiredYears;
+  }
+  return preferred;
+}
 export class Discovery {
   private active?: Promise<void>;
   private controller?: AbortController;
@@ -356,11 +377,11 @@ export class Discovery {
             const closed = !(
               direct.length ? direct : Object.entries(sources)
             ).some(([, state]) => state.present);
-            // GitHub metadata must not erase richer fields learned directly.
-            const data =
-              old && source.kind === "github"
-                ? { ...candidate, ...old }
-                : { ...old, ...candidate };
+            const data = mergeDiscoveredJob(
+              old,
+              candidate,
+              source.kind === "github",
+            );
             const job: DiscoveredJob = {
               ...data,
               sources,

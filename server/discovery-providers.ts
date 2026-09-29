@@ -103,9 +103,10 @@ export function experience(
         ? "Entry-level title"
         : requiredYears !== null
           ? `Posting mentions ${requiredYears}+ years of experience`
-          : "Experience not established",
+          : unknownExperience,
   };
 }
+export const unknownExperience = "Experience not established";
 export function isSoftwareRole(title: string) {
   return (
     /software|\bswe\b|\bsde\b|(?:backend|back.end|frontend|front.end|full.stack|web|mobile|android|ios|platform|devops|site reliability|application)\s+(?:engineer|developer)|\bprogrammer\b/i.test(

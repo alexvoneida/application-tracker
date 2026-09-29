@@ -5,7 +5,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Store, Vault } from "../server/store.ts";
 import { Tracker } from "../server/tracker.ts";
-import { Discovery, matchDiscovery } from "../server/discovery.ts";
+import {
+  Discovery,
+  matchDiscovery,
+  mergeDiscoveredJob,
+} from "../server/discovery.ts";
 import {
   boardFromUrl,
   parseBoard,
@@ -14,6 +18,7 @@ import {
   fetchSource,
   experience,
   isSoftwareRole,
+  unknownExperience,
 } from "../server/discovery-providers.ts";
 import {
   discoveryConfigSchema,
@@ -476,4 +481,27 @@ test("desktop notification failures surface their message and a later success cl
   await discovery.tick();
   assert.equal(discovery.notificationError, expected);
   await settled("");
+});
+
+test("a direct board listing keeps experience evidence learned from the curated list", () => {
+  const curated: DiscoveredJob = {
+    ...job(),
+    entryEvidence: "Listed in Simplify’s SWE new-grad section",
+    requiredYears: null,
+  };
+  const board = {
+    ...job(),
+    entryEvidence: unknownExperience,
+    requiredYears: null,
+  };
+  const merged = mergeDiscoveredJob(curated, board, false);
+  assert.equal(merged.entryEvidence, curated.entryEvidence);
+  const stated = {
+    ...job(),
+    entryEvidence: "Posting mentions 5+ years of experience",
+    requiredYears: 5,
+  };
+  assert.equal(mergeDiscoveredJob(curated, stated, false).requiredYears, 5);
+  const upgraded = mergeDiscoveredJob(board, curated, true);
+  assert.equal(upgraded.entryEvidence, curated.entryEvidence);
 });
