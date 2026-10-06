@@ -64,9 +64,11 @@ export async function publicRequest(
     : await lookup(hostname, { all: true });
   if (!addresses.length || addresses.some((a) => !isPublicAddress(a.address)))
     throw new UserError("can't fetch private or local network addresses");
-  const chosen = addresses[0];
   options.signal?.throwIfAborted();
-  // Pin the validated DNS result into this connection to prevent DNS rebinding.
+  // Pin the validated DNS results into this connection to prevent DNS rebinding.
+  // Handing Node every address lets it fall back to IPv4 when IPv6 is unroutable.
+  // The callback must be async: a synchronous connect failure (e.g. EHOSTUNREACH)
+  // otherwise fires before the request attaches its error listener and crashes the process.
   const result = await new Promise<{
     status: number;
     text: string;
@@ -83,10 +85,14 @@ export async function publicRequest(
         },
         lookup: ((
           _host: string,
-          _opts: unknown,
-          callback: (error: null, address: string, family: number) => void,
-        ) => callback(null, chosen.address, chosen.family)) as never,
-        family: chosen.family,
+          lookupOptions: { all?: boolean },
+          callback: (...result: unknown[]) => void,
+        ) =>
+          process.nextTick(() =>
+            lookupOptions.all
+              ? callback(null, addresses)
+              : callback(null, addresses[0].address, addresses[0].family),
+          )) as never,
       },
       (response) => {
         const chunks: Buffer[] = [];
