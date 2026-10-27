@@ -34,7 +34,10 @@ const paths = await packager({
   appCategoryType: "public.app-category.productivity",
   icon: join(root, ".desktop-build/Fieldwork.icns"),
   // ASAR uses matchBase: a basename glob also matches inside .desktop-build.
-  asar: { unpack: "*.node" },
+  // dist is unpacked because opening a packed file makes Electron copy it to
+  // $TMPDIR once per process, and macOS purges those copies after ~3 days, so
+  // a long-running app starts failing page loads with ENOENT.
+  asar: { unpack: "*.node", unpackDir: "dist" },
   // Explicit allowlist, plus packager's production-dependency pruning.
   // No source, .env, databases, test fixtures, signing keys, or link files.
   ignore: (path) =>
@@ -68,6 +71,12 @@ for (const path of paths) {
     join(
       path,
       `${appName}.app/Contents/Resources/app.asar.unpacked/.desktop-build/notification-permissions.node`,
+    ),
+  );
+  await access(
+    join(
+      path,
+      `${appName}.app/Contents/Resources/app.asar.unpacked/dist/index.html`,
     ),
   );
   console.log(`Packaged: ${path}/${appName}.app`);

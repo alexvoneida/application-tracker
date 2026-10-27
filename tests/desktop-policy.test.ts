@@ -112,6 +112,24 @@ test("embedded server chooses a loopback port, stops cleanly, and persists data"
   }
 });
 
+test("page errors don't expose file paths", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "fieldwork-runtime-"));
+  mkdirSync(join(directory, "dist"));
+  writeFileSync(join(directory, "dist/index.html"), "<!doctype html>");
+  let runtime: Awaited<ReturnType<typeof startServer>> | undefined;
+  try {
+    runtime = await startServer({ directory, root: directory });
+    rmSync(join(directory, "dist/index.html"));
+    const response = await fetch(`${runtime.origin}/?gmail=connected`);
+    assert.equal(response.status, 500);
+    const body = await response.text();
+    assert.doesNotMatch(body, /ENOENT|index\.html/);
+  } finally {
+    await runtime?.stop();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("shutdown waits for pending work but gives up after the time limit", async () => {
   assert.equal(await settleWithin(Promise.resolve(), 1000), true);
   assert.equal(await settleWithin(Promise.reject(new Error("x")), 1000), true);

@@ -76,6 +76,22 @@ export async function startServer(options: ServerOptions) {
       closeVite = () => vite.close();
       app.use(vite.middlewares);
     }
+    // Express's default handler would print the error, stack, and file paths
+    // into the app window.
+    app.use(
+      (
+        error: unknown,
+        _req: express.Request,
+        res: express.Response,
+        next: express.NextFunction,
+      ) => {
+        if (res.headersSent) return next(error);
+        res
+          .status(500)
+          .type("text")
+          .send("the app couldn't load this page. quit and reopen it.");
+      },
+    );
     const watchTimer = setInterval(() => void tracker.scanFile(), 2000);
     const discoveryTimer = setInterval(() => void discovery.tick(), 10000);
     void discovery.tick();
